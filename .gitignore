@@ -1,0 +1,63 @@
+# Python
+*.py[cod]
+__pycache__/
+*.so
+.Python
+env/
+venv/
+.env
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Dependencies
+node_modules/
+bower_components/
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Translations
+*.mo
+*.pot
+
+# Docker
+Dockerfile
+docker-compose.yml
+.docker/
+
+# Local development settings
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
