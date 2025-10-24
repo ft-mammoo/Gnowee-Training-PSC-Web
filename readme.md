@@ -74,7 +74,14 @@ Edit settings in `psc_training_web/settings.py`. For production deployments, ens
 
 ## Contributing
 
-Contributions are welcome. Open issues or submit pull requests. Keep changes small and focused, and include tests where applicable.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions, coding conventions, and workflow guidelines.
+
+We use pre-commit hooks to maintain code quality. After cloning the repository:
+
+```bash
+pip install -r requirements.txt  # Installs Django + dev tools
+pre-commit install              # Sets up git hooks
+```
 
 ## License
 
