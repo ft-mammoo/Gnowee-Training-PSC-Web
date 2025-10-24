@@ -48,6 +48,10 @@ htmlcov/
 coverage.xml
 *.cover
 
+# Pre-commit
+.pre-commit-config.yaml
+.pytest_cache/
+
 # Translations
 *.mo
 *.pot
