@@ -43,11 +43,7 @@ class Enrollment(SoftDeleteModel):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollments')
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, related_name='enrollments')
     enrollment_date = models.DateField(auto_now_add=True)
-    status = models.CharField(
-        max_length=1,
-        choices=STATUS_CHOICES,
-        default='a'
-    )
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='a')
 
     def __str__(self):
         return f"Enrollment {self.id}: Student {self.student_id} in Course {self.course_id}"
