@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from utility.models import User
+from students import models
 
 class StudentSerializer(serializers.Serializer):
     GENDER_CHOICES = (
@@ -27,3 +28,7 @@ class StudentSerializer(serializers.Serializer):
     profile_picture = serializers.CharField(max_length=255, required = False, allow_null = True)
     date_joined = serializers.DateField()
 
+    def create(self, validated_data):
+        return models.Student.objects.create(**validated_data)
+    
+    
