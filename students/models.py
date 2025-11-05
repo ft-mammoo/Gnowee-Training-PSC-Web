@@ -7,9 +7,9 @@ User = get_user_model()
 
 class Student(SoftDeleteModel):
     GENDER_CHOICES = (
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other')
+        ('m', 'Male'),
+        ('f', 'Female'),
+        ('o', 'Other')
     )
     STATUS_CHOICES = (
         ('a', 'Active'),
