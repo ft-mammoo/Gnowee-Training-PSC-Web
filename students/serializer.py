@@ -1,3 +1,4 @@
+from datetime import date
 from rest_framework import serializers
 from utility.models import User
 from students import models
@@ -38,6 +39,7 @@ class StudentSerializer(serializers.Serializer):
         return instance
     
 class StudentModelSerializer(serializers.ModelSerializer):
+    age = serializers.SerializerMethodField()
     class Meta:
         model = models.Student
         fields = '__all__'
@@ -45,4 +47,5 @@ class StudentModelSerializer(serializers.ModelSerializer):
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
     
-    
+    def get_age(self, instance):
+        return date.today().year - instance.date_of_birth.year
