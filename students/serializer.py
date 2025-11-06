@@ -37,4 +37,12 @@ class StudentSerializer(serializers.Serializer):
         instance.save()
         return instance
     
+class StudentModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Student
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
+    
     
