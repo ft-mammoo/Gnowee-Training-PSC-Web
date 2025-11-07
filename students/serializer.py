@@ -49,3 +49,17 @@ class StudentModelSerializer(serializers.ModelSerializer):
     
     def get_age(self, instance):
         return date.today().year - instance.date_of_birth.year
+    
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username']
+
+class StudentNestedSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    class Meta:
+        model = models.Student
+        fields = "__all__"
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
