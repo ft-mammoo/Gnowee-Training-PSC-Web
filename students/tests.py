@@ -2,7 +2,7 @@ from django.test import TestCase
 from datetime import date
 from utility.models import User
 from students.models import Student, Enrollment
-from students.serializer import StudentSerializer, StudentModelSerializer
+from students.serializer import StudentSerializer, StudentModelSerializer, StudentNestedSerializer
 
 class StudentSerializerTestCase(TestCase):
     def setUp(self):
@@ -263,3 +263,27 @@ class ModelStudentSerializerTestCase(TestCase):
         se = StudentModelSerializer(qs, many=True)
         print(se.data)
         self.assertEqual(len(se.data), 5)
+
+class NestedSerializerTest(TestCase):
+    def setUp(self):
+        student_user = User.objects.create(
+            username='John', 
+            password='password'
+        )
+        self.student_1 = Student.objects.create(
+            user=student_user,
+            first_name='John',
+            last_name='Doe',
+            date_of_birth=date(2000, 1, 1),
+            gender='m',
+            contact_number='1234567890',
+            emergency_contact_name='Jane Doe',  
+            emergency_contact_number='9876543210',
+            status='a', 
+            date_joined=date.today(),
+        )
+    
+    def test_serializer(self):
+        se = StudentNestedSerializer(self.student_1)
+        print(se.data)
+        self.assertEqual(se.data['first_name'], 'John')
