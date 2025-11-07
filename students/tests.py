@@ -287,3 +287,106 @@ class NestedSerializerTest(TestCase):
         se = StudentNestedSerializer(self.student_1)
         print(se.data)
         self.assertEqual(se.data['first_name'], 'John')
+
+    def test_serializer_create(self):
+        data = {
+            'user': {'username': 'Alice'},
+            'first_name': 'Alice',
+            'last_name': 'Smith',
+            'date_of_birth': '1999-05-15',
+            'gender': 'f',
+            'contact_number': '9876543210',
+            'emergency_contact_name': 'Bob Smith',
+            'emergency_contact_number': '1234567890',
+            'status': 'a',
+            'date_joined': '2022-01-01',
+        }
+        se = StudentNestedSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(Student.objects.count(), 2)
+    
+    def test_serializer_update(self):
+        change = {
+            'first_name': 'Johnny',
+        }
+        se = StudentNestedSerializer(self.student_1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.student_1.refresh_from_db()
+        self.assertEqual(self.student_1.first_name, 'Johnny')
+
+    def test_listing(self):
+        u2 = User.objects.create_user(
+            username='student2', 
+            password='password'
+        )
+        u3 = User.objects.create_user(
+            username='student3', 
+            password='password'
+        )
+        u4 = User.objects.create_user(    
+            username='student4',
+            password='password'
+        )
+        u5 = User.objects.create_user(    
+            username='student5',
+            password='password'
+        )
+
+        s2 = Student.objects.create(
+            user=u2,
+            first_name='Emily',
+            last_name='Clark',
+            date_of_birth=date(2001, 2, 2),
+            gender='f',
+            contact_number='1234567890',
+            emergency_contact_name='Jane Doe',  
+            emergency_contact_number='9876543210',
+            status='a', 
+            date_joined=date.today(),
+        )
+        s3 = Student.objects.create(
+            user=u3,
+            first_name='Michael',
+            last_name='Brown',
+            date_of_birth=date(2002, 3, 3),
+            gender='m',
+            contact_number='1234567890',
+            emergency_contact_name='Jane Doe',  
+            emergency_contact_number='9876543210',
+            status='a', 
+            date_joined=date.today(),
+        )
+        s4 = Student.objects.create(
+            user=u4,
+            first_name='Sarah',
+            last_name='Davis',
+            date_of_birth=date(2003, 4, 4),
+            gender='f',
+            contact_number='1234567890',
+            emergency_contact_name='Jane Doe',  
+            emergency_contact_number='9876543210',
+            status='a', 
+            date_joined=date.today(),
+        )
+        s5 = Student.objects.create(
+            user=u5,
+            first_name='David',
+            last_name='Wilson',
+            date_of_birth=date(2004, 5, 5), 
+            gender='m',
+            contact_number='1234567890',
+            emergency_contact_name='Jane Doe',  
+            emergency_contact_number='9876543210',
+            status='a', 
+            date_joined=date.today(),
+        )
+
+        qs = Student.objects.all()
+        se = StudentNestedSerializer(qs, many=True)
+        print(se.data)
+        self.assertEqual(len(se.data), 5)
+
