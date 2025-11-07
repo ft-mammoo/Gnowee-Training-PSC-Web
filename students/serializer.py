@@ -63,3 +63,9 @@ class StudentNestedSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
+
+    def create(self, validated_data):
+        user_data = validated_data.pop('user')
+        user = User.objects.create(**user_data)
+        student = models.Student.objects.create(user=user, **validated_data)
+        return student
