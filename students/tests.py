@@ -1,9 +1,10 @@
+from django.db import connection
 from django.test import TestCase
 from datetime import date
 from utility.models import User
 from students.models import Student
 from students.serializer import StudentSerializer, StudentModelSerializer, StudentNestedSerializer
-
+from django.test.utils import CaptureQueriesContext
 class StudentSerializerTestCase(TestCase):
     def setUp(self):
         student_user = User.objects.create(
@@ -386,7 +387,9 @@ class NestedSerializerTest(TestCase):
         )
 
         qs = Student.objects.all()
-        se = StudentNestedSerializer(qs, many=True)
-        print(se.data)
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = StudentNestedSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
