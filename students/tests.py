@@ -1,7 +1,7 @@
 from django.test import TestCase
 from datetime import date
 from utility.models import User
-from students.models import Student, Enrollment
+from students.models import Student
 from students.serializer import StudentSerializer, StudentModelSerializer, StudentNestedSerializer
 
 class StudentSerializerTestCase(TestCase):
