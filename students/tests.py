@@ -386,7 +386,7 @@ class NestedSerializerTest(TestCase):
             date_joined=date.today(),
         )
 
-        qs = Student.objects.all()
+        qs = Student.objects.all().select_related('user')
         with CaptureQueriesContext(connection=connection) as ctx:
             se = StudentNestedSerializer(qs, many=True)
             print(se.data)
