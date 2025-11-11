@@ -74,7 +74,7 @@ class StudentNestedSerializer(serializers.ModelSerializer):
     
 class StudentAndCourseNestedSerializer(serializers.ModelSerializer):
     user = UserSerializer()
-    courses = serializers.SerializerMethodField(read_only=True)
+    courses = CourseSerializer(read_only=True, many=True)
     class Meta:
         model = models.Student
         fields = "__all__"
@@ -88,7 +88,3 @@ class StudentAndCourseNestedSerializer(serializers.ModelSerializer):
         student = models.Student.objects.create(user=user, **validated_data)
         return student
     
-    def get_courses(self,instance):
-        courses = Course.objects.filter(enrollments__student__id = instance.id)
-        se = CourseSerializer(courses, many=True)
-        return se.data
