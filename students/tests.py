@@ -520,4 +520,3 @@ class StudentAndCourseNestedSerializerTestCase(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
-
