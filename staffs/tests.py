@@ -28,5 +28,31 @@ class TeacherModelSerializerTestCase(TestCase):
 
     def test_teacher_model_serializer(self):
         se = TeacherModelSerializer(self.teacher_1)
-        print(se.data)
+        #print(se.data)
         self.assertEqual(se.data['first_name'], 'John')
+
+    def test_serializer_create(self):
+        teacher_user = User.objects.create_user(
+            username='teacher2',
+            password='password123',
+        )
+        data = {
+            'user': teacher_user.id,
+            'first_name': 'Jane',
+            'last_name': 'Smith',
+            'dob': '1990-05-15',
+            'gender': 'f',
+            'employee_code': '5678',
+            'experience_years': 5,
+            'contact_number': '0987654321',
+            'emergency_contact_number': '1234509876',
+            'email_institutional': 'HcMl7@example.com', 
+            'status': 'a',
+            'date_joined': '2022-01-01',
+        }
+        se = TeacherModelSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(Teacher.objects.count(), 2)
