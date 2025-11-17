@@ -56,3 +56,15 @@ class TeacherModelSerializerTestCase(TestCase):
         self.assertTrue(se.is_valid())
         se.save()
         self.assertEqual(Teacher.objects.count(), 2)
+
+    def test_serializer_update(self):
+        change = {
+            'first_name': 'Johnny',
+            'last_name': 'Doe',
+            'dob': '1984-01-01',
+        }
+        se = TeacherModelSerializer(self.teacher_1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.teacher_1.refresh_from_db()
+        self.assertEqual(self.teacher_1.first_name, 'Johnny')
