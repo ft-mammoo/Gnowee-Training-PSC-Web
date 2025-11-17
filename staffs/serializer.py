@@ -1,10 +1,7 @@
 from rest_framework import serializers
 from staffs import models
-from students.serializer import UserSerializer
 
 class TeacherModelSerializer(serializers.ModelSerializer):
-
-    user = UserSerializer(read_only=True)
     class Meta:
         model = models.Teacher
         fields = '__all__'
