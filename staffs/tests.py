@@ -1,3 +1,4 @@
+from django.db import connection
 from datetime import date
 from django.test import TestCase
 from utility.models import User
@@ -8,7 +9,7 @@ from django.test.utils import CaptureQueriesContext
 class TeacherModelSerializerTestCase(TestCase):
     def setUp(self):
         self_user = User.objects.create_user(
-            username='teacher1',
+            username='John',
             password='password123',
         )
         self.teacher_1 = Teacher.objects.create(
@@ -33,7 +34,7 @@ class TeacherModelSerializerTestCase(TestCase):
 
     def test_serializer_create(self):
         teacher_user = User.objects.create_user(
-            username='teacher2',
+            username='Jane',
             password='password123',
         )
         data = {
@@ -68,3 +69,84 @@ class TeacherModelSerializerTestCase(TestCase):
         se.save()
         self.teacher_1.refresh_from_db()
         self.assertEqual(self.teacher_1.first_name, 'Johnny')
+
+    def test_listing(self):
+        u2 = User.objects.create_user(
+            username='Steve',
+            password='password123',
+        )
+        u3 = User.objects.create_user(
+            username='Anna',
+            password='password123',
+        )
+        u4 = User.objects.create_user(
+            username='Mary',
+            password='password123',
+        )
+        u5 = User.objects.create_user(
+            username='Bob',
+            password='password123',
+        )
+
+        t2 = Teacher.objects.create(
+            user=u2,
+            first_name='Steve',
+            last_name='Brown',
+            dob=date(1975, 6, 20),
+            gender='m',
+            employee_code='2345',   
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='q1w2@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        t3 = Teacher.objects.create(
+            user=u3,
+            first_name='Anna',
+            last_name='Davis',
+            dob=date(1988, 3, 14),
+            gender='f',
+            employee_code='3456',
+            experience_years=5,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='e3r4r4@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        t4 = Teacher.objects.create(
+            user=u4,
+            first_name='Mary',
+            last_name='Wilson',
+            dob=date(1992, 11, 30),
+            gender='f',
+            employee_code='4567',
+            experience_years=3,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='q1w2e3t5y6@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        t5 = Teacher.objects.create(
+            user=u5,
+            first_name='Bob',
+            last_name='Taylor',
+            dob=date(1980, 8, 25),
+            gender='m',
+            employee_code='5678',
+            experience_years=8,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='q1w2o90p@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        qs = Teacher.objects.all().select_related('user')
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = TeacherModelSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 5)
