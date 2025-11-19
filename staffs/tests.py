@@ -2,8 +2,8 @@ from django.db import connection
 from datetime import date
 from django.test import TestCase
 from utility.models import User
-from staffs.models import Teacher
-from staffs.serializer import TeacherModelSerializer
+from staffs.models import Teacher, Qualification
+from staffs.serializer import TeacherModelSerializer, QualificationModelSerializer
 from django.test.utils import CaptureQueriesContext
 
 class TeacherModelSerializerTestCase(TestCase):
@@ -150,3 +150,59 @@ class TeacherModelSerializerTestCase(TestCase):
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
+
+class QualificationModelSerializerTestCase(TestCase):
+    def setUp(self):
+        self.qualification_1 = Qualification.objects.create(
+            name='Bachelor of Science',
+            description='Undergraduate academic degree',
+            status='a',
+        )
+
+    def test_qualification_model_serializer(self):
+        se = QualificationModelSerializer(self.qualification_1)
+        print(se.data)
+        self.assertEqual(se.data['name'], 'Bachelor of Science')
+
+    def test_serializer_create(self):
+        data = {
+            'name': 'Master of Science',
+            'description': 'Graduate academic degree',
+            'status': 'a',
+        }
+        se = QualificationModelSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(Qualification.objects.count(), 2)
+
+    def test_serializer_update(self):
+        change = {
+            'description': 'Updated description for Bachelor of Science',
+        }
+        se = QualificationModelSerializer(self.qualification_1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.qualification_1.refresh_from_db()
+        self.assertEqual(self.qualification_1.description, 'Updated description for Bachelor of Science')
+        print(se.is_valid())
+        print(se.errors)
+
+    def test_listing(self):
+        q2 = Qualification.objects.create(
+            name='Doctor of Philosophy',
+            description='Highest academic degree',
+            status='a',
+        )
+        q3 = Qualification.objects.create(
+            name='Associate Degree',
+            description='Undergraduate academic degree',
+            status='a',
+        )
+        qs = Qualification.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = QualificationModelSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 3)
