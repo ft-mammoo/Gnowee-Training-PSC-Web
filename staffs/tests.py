@@ -2,8 +2,8 @@ from django.db import connection
 from datetime import date
 from django.test import TestCase
 from utility.models import User
-from staffs.models import Teacher, Qualification, UserQualification
-from staffs.serializer import TeacherModelSerializer, QualificationModelSerializer, UserQualificationModelSerializer
+from staffs.models import Teacher, Qualification, UserQualification, Specialization, UserSpecialization, Department, UserDepartment, Designation, UserDesignation
+from staffs.serializer import TeacherModelSerializer, QualificationModelSerializer, UserQualificationModelSerializer, SpecializationSerializer
 from django.test.utils import CaptureQueriesContext
 
 class TeacherModelSerializerTestCase(TestCase):
@@ -316,3 +316,61 @@ class UserQualificationModelSerializerTestCase(TestCase):
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
+
+class SpecializationModelSerializerTestCase(TestCase):
+    def setUp(self):
+        self.specialization_1 = Specialization.objects.create(
+            name='Mathematics',
+            description='Study of numbers and shapes',
+            status='a',
+        )
+
+    def test_specialization_serializer(self):
+        se = SpecializationSerializer(self.specialization_1)
+        print(se.data)
+        self.assertEqual(se.data['name'], 'Mathematics')
+
+    def test_serializer_create(self):
+        data = {
+            'name': 'Physics',
+            'description': 'Study of matter and energy',
+            'status': 'a',
+        }
+        se = SpecializationSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(Specialization.objects.count(), 2)
+
+    def test_serializer_update(self):
+        change = {
+            'description': 'Updated description for Mathematics',
+        }
+        se = SpecializationSerializer(self.specialization_1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.specialization_1.refresh_from_db()
+        self.assertEqual(self.specialization_1.description, 'Updated description for Mathematics')
+        print(se.is_valid())
+        print(se.errors)
+
+    def test_listing(self):
+        s2 = Specialization.objects.create(
+            name='Chemistry',
+            description='Study of substances and reactions',
+            status='a',
+        )
+        s3 = Specialization.objects.create(
+            name='Biology',
+            description='Study of living organisms',
+            status='a',
+        )
+        qs = Specialization.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = SpecializationSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 3)
+
+    

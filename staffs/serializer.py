@@ -24,3 +24,11 @@ class UserQualificationModelSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
+
+class SpecializationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Specialization
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
