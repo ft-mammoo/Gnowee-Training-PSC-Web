@@ -8,3 +8,11 @@ class TeacherModelSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
+
+class QualificationModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Qualification
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
