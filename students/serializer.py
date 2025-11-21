@@ -1,7 +1,7 @@
 from datetime import date
 from rest_framework import serializers
-from courses.models import Course
 from courses.serializer import CourseSerializer
+from courses.models import Course
 from utility.models import User
 from students import models
 
@@ -88,3 +88,12 @@ class StudentAndCourseNestedSerializer(serializers.ModelSerializer):
         student = models.Student.objects.create(user=user, **validated_data)
         return student
     
+
+class StudentEnrollmentModelSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = models.Enrollment
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
