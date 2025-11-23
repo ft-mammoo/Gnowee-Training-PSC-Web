@@ -3,7 +3,7 @@ from datetime import date
 from django.test import TestCase
 from utility.models import User
 from staffs.models import Teacher, Qualification, UserQualification, Specialization, UserSpecialization, Department, UserDepartment, Designation, UserDesignation
-from staffs.serializer import TeacherModelSerializer, QualificationModelSerializer, UserQualificationModelSerializer, SpecializationSerializer
+from staffs.serializer import TeacherModelSerializer, QualificationModelSerializer, UserQualificationModelSerializer, SpecializationSerializer, UserSpecializationSerializer
 from django.test.utils import CaptureQueriesContext
 
 class TeacherModelSerializerTestCase(TestCase):
@@ -373,4 +373,114 @@ class SpecializationModelSerializerTestCase(TestCase):
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 3)
 
-    
+class UserSpecializationModelSerializerTestCase(TestCase):
+    def setUp(self):
+        self.user_1 = User.objects.create_user(
+            username='George',
+            password='password123',
+        )
+        self.specialization_1 = Specialization.objects.create(
+            name='History',
+            description='Study of past events',
+            status='a',
+        )
+        self.user_specialization_1 = UserSpecialization.objects.create(
+            user=self.user_1,
+            specialization=self.specialization_1,
+            status='a',
+        )
+
+    def test_user_specialization_model_serializer(self):
+        se = UserSpecializationSerializer(self.user_specialization_1)
+        print(se.data)
+        self.assertEqual(se.data['user'], self.user_1.id)
+
+    def test_create(self):
+        u2 = User.objects.create_user(
+            username='soman',
+            password='1234',
+        )
+        s2 = Specialization.objects.create(
+            name='Mathematics',
+            description='Study of numbers and shapes',
+            status='a',
+        )
+        data = {
+            'user': u2.id,
+            'specialization': s2.id,
+            'status': 'a',
+        }
+        se = UserSpecializationSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        print(se.data)
+        self.assertEqual(UserSpecialization.objects.count(), 2)
+
+    def test_update(self):
+        change = {
+            'status': 'i',
+        }
+        se = UserSpecializationSerializer(self.user_specialization_1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.user_specialization_1.refresh_from_db()
+        self.assertEqual(self.user_specialization_1.status, 'i')
+        print(se.is_valid())
+        print(se.errors)
+        print(se.data)
+
+    def test_listing(self):
+        u2 = User.objects.create_user(
+            username='Helen',
+            password='password123',
+        )
+        u3 = User.objects.create_user(
+            username='Ian',
+            password='password123',
+        )
+        u4 = User.objects.create_user(    
+            username='Jack',
+            password='password123',
+        )
+        u5 = User.objects.create_user(
+            username='Karen',
+            password='password123',
+        )
+        s2 = Specialization.objects.create(
+            name='Geography',
+            description='Study of places and environments',
+            status='a',
+        )
+        s3 = Specialization.objects.create(
+            name='Economics',
+            description='Study of production and consumption',
+            status='a',
+        )
+        us2 = UserSpecialization.objects.create(
+            user=u2,
+            specialization=s2,
+            status='a', 
+        )
+        us3 = UserSpecialization.objects.create(
+            user=u3,
+            specialization=s3,
+            status='a',
+        )
+        us4 = UserSpecialization.objects.create(
+            user=u4,
+            specialization=self.specialization_1,
+            status='a',
+        )
+        us5 = UserSpecialization.objects.create(
+            user=u5,
+            specialization=s2,
+            status='a',
+        )
+        qs = UserSpecialization.objects.all().select_related('user', 'specialization')
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = UserSpecializationSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 5)
