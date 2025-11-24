@@ -553,3 +553,113 @@ class DepartmentModelSerializerTestCase(TestCase):
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
+class UserDepartmentModelSerializerTestCase(TestCase):
+    def setUp(self):
+        self.u1 = User.objects.create_user(
+            username='George',
+            password='password123',
+        )
+        self.d1 = mod.Department.objects.create(
+            name = 'Science',
+            description = 'Science Department',
+            status = 'a',
+        )
+        self.ud1 = mod.UserDepartment.objects.create(
+            user = self.u1,
+            department = self.d1,
+            status = 'a',
+        )
+        
+    
+    def test_model_serializer(self):
+        se = ser.UserDepartmentModelSerializer(self.ud1)
+        print(se.data)
+    def test_create(self):
+        u2 = User.objects.create_user(
+            username='Dravem',
+            password='password123',
+        )
+        d2 = mod.Department.objects.create(
+            name = 'Mathematics',
+            description = 'Mathematics Department',
+            status = 'a',
+        )
+        data = {
+            'user': u2.id,
+            'department': d2.id,
+            'status': 'a',
+        }
+        se = ser.UserDepartmentModelSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(mod.UserDepartment.objects.count(), 2)
+        print(se.data)
+
+    def test_update(self):
+        change = {
+            'status': 'i',
+        }
+        se = ser.UserDepartmentModelSerializer(self.ud1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.ud1.refresh_from_db()
+        self.assertEqual(self.ud1.status, 'i')
+        print(se.is_valid())
+        print(se.errors)
+        print(se.data)
+
+    def test_listing(self):
+        u2 = User.objects.create_user(
+            username='Helen',
+            password='password123',
+        )
+        u3 = User.objects.create_user(
+            username='Ian',
+            password='password123',
+        )
+        u4 = User.objects.create_user(    
+            username='Jack',
+            password='password123',
+        )
+        u5 = User.objects.create_user(
+            username='Karen',
+            password='password123',
+        )
+        d2 = mod.Department.objects.create(
+            name = 'Arts',
+            description = 'Arts Department',
+            status = 'a',
+        )
+        d3 = mod.Department.objects.create(
+            name = 'Commerce',
+            description = 'Commerce Department',
+            status = 'a',
+        )
+        ud2 = mod.UserDepartment.objects.create(
+            user = u2,
+            department = d2,
+            status = 'a',
+        )
+        ud3 = mod.UserDepartment.objects.create(
+            user = u3,
+            department = d3,
+            status = 'a',
+        )
+        ud4 = mod.UserDepartment.objects.create(
+            user = u4,
+            department = self.d1,
+            status = 'a',
+        )
+        ud5 = mod.UserDepartment.objects.create(
+            user = u5,
+            department = d2,
+            status = 'a',
+        )
+        qs = mod.UserDepartment.objects.all().select_related('user', 'department')
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = ser.UserDepartmentModelSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 5)
