@@ -2,8 +2,8 @@ from django.db import connection
 from datetime import date
 from django.test import TestCase
 from utility.models import User
-from staffs.models import Teacher, Qualification, UserQualification, Specialization, UserSpecialization, Department, UserDepartment, Designation, UserDesignation
-from staffs.serializer import TeacherModelSerializer, QualificationModelSerializer, UserQualificationModelSerializer, SpecializationSerializer, UserSpecializationSerializer
+from staffs import models as mod
+from staffs import serializer as ser
 from django.test.utils import CaptureQueriesContext
 
 class TeacherModelSerializerTestCase(TestCase):
@@ -12,7 +12,7 @@ class TeacherModelSerializerTestCase(TestCase):
             username='John',
             password='password123',
         )
-        self.teacher_1 = Teacher.objects.create(
+        self.teacher_1 = mod.Teacher.objects.create(
             user=self_user,
             first_name='John',
             last_name='Doe',
@@ -28,7 +28,7 @@ class TeacherModelSerializerTestCase(TestCase):
         )
 
     def test_teacher_model_serializer(self):
-        se = TeacherModelSerializer(self.teacher_1)
+        se = ser.TeacherModelSerializer(self.teacher_1)
         #print(se.data)
         self.assertEqual(se.data['first_name'], 'John')
 
@@ -51,12 +51,12 @@ class TeacherModelSerializerTestCase(TestCase):
             'status': 'a',
             'date_joined': '2022-01-01',
         }
-        se = TeacherModelSerializer(data=data)
+        se = ser.TeacherModelSerializer(data=data)
         print(se.is_valid())
         print(se.errors)
         self.assertTrue(se.is_valid())
         se.save()
-        self.assertEqual(Teacher.objects.count(), 2)
+        self.assertEqual(mod.Teacher.objects.count(), 2)
 
     def test_serializer_update(self):
         change = {
@@ -64,7 +64,7 @@ class TeacherModelSerializerTestCase(TestCase):
             'last_name': 'Doe',
             'dob': '1984-01-01',
         }
-        se = TeacherModelSerializer(self.teacher_1, data=change, partial=True)
+        se = ser.TeacherModelSerializer(self.teacher_1, data=change, partial=True)
         self.assertTrue(se.is_valid())
         se.save()
         self.teacher_1.refresh_from_db()
@@ -88,7 +88,7 @@ class TeacherModelSerializerTestCase(TestCase):
             password='password123',
         )
 
-        t2 = Teacher.objects.create(
+        t2 = mod.Teacher.objects.create(
             user=u2,
             first_name='Steve',
             last_name='Brown',
@@ -102,7 +102,7 @@ class TeacherModelSerializerTestCase(TestCase):
             status='a', 
             date_joined=date.today(),
         )
-        t3 = Teacher.objects.create(
+        t3 = mod.Teacher.objects.create(
             user=u3,
             first_name='Anna',
             last_name='Davis',
@@ -116,7 +116,7 @@ class TeacherModelSerializerTestCase(TestCase):
             status='a', 
             date_joined=date.today(),
         )
-        t4 = Teacher.objects.create(
+        t4 = mod.Teacher.objects.create(
             user=u4,
             first_name='Mary',
             last_name='Wilson',
@@ -130,7 +130,7 @@ class TeacherModelSerializerTestCase(TestCase):
             status='a', 
             date_joined=date.today(),
         )
-        t5 = Teacher.objects.create(
+        t5 = mod.Teacher.objects.create(
             user=u5,
             first_name='Bob',
             last_name='Taylor',
@@ -144,23 +144,23 @@ class TeacherModelSerializerTestCase(TestCase):
             status='a', 
             date_joined=date.today(),
         )
-        qs = Teacher.objects.all().select_related('user')
+        qs = mod.Teacher.objects.all().select_related('user')
         with CaptureQueriesContext(connection=connection) as ctx:
-            se = TeacherModelSerializer(qs, many=True)
+            se = ser.TeacherModelSerializer(qs, many=True)
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
 class QualificationModelSerializerTestCase(TestCase):
     def setUp(self):
-        self.qualification_1 = Qualification.objects.create(
+        self.qualification_1 = mod.Qualification.objects.create(
             name='Bachelor of Science',
             description='Undergraduate academic degree',
             status='a',
         )
 
     def test_qualification_model_serializer(self):
-        se = QualificationModelSerializer(self.qualification_1)
+        se = ser.QualificationModelSerializer(self.qualification_1)
         print(se.data)
         self.assertEqual(se.data['name'], 'Bachelor of Science')
 
@@ -170,18 +170,18 @@ class QualificationModelSerializerTestCase(TestCase):
             'description': 'Graduate academic degree',
             'status': 'a',
         }
-        se = QualificationModelSerializer(data=data)
+        se = ser.QualificationModelSerializer(data=data)
         print(se.is_valid())
         print(se.errors)
         self.assertTrue(se.is_valid())
         se.save()
-        self.assertEqual(Qualification.objects.count(), 2)
+        self.assertEqual(mod.Qualification.objects.count(), 2)
 
     def test_serializer_update(self):
         change = {
             'description': 'Updated description for Bachelor of Science',
         }
-        se = QualificationModelSerializer(self.qualification_1, data=change, partial=True)
+        se = ser.QualificationModelSerializer(self.qualification_1, data=change, partial=True)
         self.assertTrue(se.is_valid())
         se.save()
         self.qualification_1.refresh_from_db()
@@ -190,19 +190,19 @@ class QualificationModelSerializerTestCase(TestCase):
         print(se.errors)
 
     def test_listing(self):
-        q2 = Qualification.objects.create(
+        q2 = mod.Qualification.objects.create(
             name='Doctor of Philosophy',
             description='Highest academic degree',
             status='a',
         )
-        q3 = Qualification.objects.create(
+        q3 = mod.Qualification.objects.create(
             name='Associate Degree',
             description='Undergraduate academic degree',
             status='a',
         )
-        qs = Qualification.objects.all()
+        qs = mod.Qualification.objects.all()
         with CaptureQueriesContext(connection=connection) as ctx:
-            se = QualificationModelSerializer(qs, many=True)
+            se = ser.QualificationModelSerializer(qs, many=True)
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 3)
@@ -213,19 +213,19 @@ class UserQualificationModelSerializerTestCase(TestCase):
             username='Alice',
             password='password123',
         )
-        self.qualification_1 = Qualification.objects.create(
+        self.qualification_1 = mod.Qualification.objects.create(
             name='Bachelor of Arts',
             description='Undergraduate academic degree',
             status='a',
         )
-        self.user_qualification_1 = UserQualification.objects.create(
+        self.user_qualification_1 = mod.UserQualification.objects.create(
             user=self.user_1,
             qualification=self.qualification_1,
             status='a',
         )
 
     def test_user_qualification_model_serializer(self):
-        se = UserQualificationModelSerializer(self.user_qualification_1)
+        se = ser.UserQualificationModelSerializer(self.user_qualification_1)
         print(se.data)
         self.assertEqual(se.data['user'], self.user_1.id)
 
@@ -234,7 +234,7 @@ class UserQualificationModelSerializerTestCase(TestCase):
             username='Bob',
             password='password123',
         )
-        q2 = Qualification.objects.create(
+        q2 = mod.Qualification.objects.create(
             name='Master of Arts',
             description='Graduate academic degree',
             status='a',
@@ -244,18 +244,18 @@ class UserQualificationModelSerializerTestCase(TestCase):
             'qualification': q2.id,
             'status': 'a',
         }
-        se = UserQualificationModelSerializer(data=data)
+        se = ser.UserQualificationModelSerializer(data=data)
         print(se.is_valid())
         print(se.errors)
         self.assertTrue(se.is_valid())
         se.save()
-        self.assertEqual(UserQualification.objects.count(), 2)
+        self.assertEqual(mod.UserQualification.objects.count(), 2)
     
     def test_serializer_update(self):
         change = {
             'status': 'i',
         }
-        se = UserQualificationModelSerializer(self.user_qualification_1, data=change, partial=True)
+        se = ser.UserQualificationModelSerializer(self.user_qualification_1, data=change, partial=True)
         self.assertTrue(se.is_valid())
         se.save()
         self.user_qualification_1.refresh_from_db()
@@ -280,53 +280,53 @@ class UserQualificationModelSerializerTestCase(TestCase):
             username='Frank',
             password='password123',
         )
-        q2 = Qualification.objects.create(
+        q2 = mod.Qualification.objects.create(
             name='Doctor of Arts',
             description='Highest academic degree',
             status='a',
         )
-        q3 = Qualification.objects.create(
+        q3 = mod.Qualification.objects.create(
             name='Associate of Arts',
             description='Undergraduate academic degree',
             status='a',
         )
-        uq2 = UserQualification.objects.create(
+        uq2 = mod.UserQualification.objects.create(
             user=u2,
             qualification=q2,
             status='a', 
         )
-        uq3 = UserQualification.objects.create(
+        uq3 = mod.UserQualification.objects.create(
             user=u3,
             qualification=q3,
             status='a',
         )
-        uq4 = UserQualification.objects.create(
+        uq4 = mod.UserQualification.objects.create(
             user=u4,
             qualification=self.qualification_1,
             status='a',
         )
-        uq5 = UserQualification.objects.create(
+        uq5 = mod.UserQualification.objects.create(
             user=u5,
             qualification=q2,
             status='a',
         )
-        qs = UserQualification.objects.all().select_related('user', 'qualification')
+        qs = mod.UserQualification.objects.all().select_related('user', 'qualification')
         with CaptureQueriesContext(connection=connection) as ctx:
-            se = UserQualificationModelSerializer(qs, many=True)
+            se = ser.UserQualificationModelSerializer(qs, many=True)
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
 class SpecializationModelSerializerTestCase(TestCase):
     def setUp(self):
-        self.specialization_1 = Specialization.objects.create(
+        self.specialization_1 = mod.Specialization.objects.create(
             name='Mathematics',
             description='Study of numbers and shapes',
             status='a',
         )
 
     def test_specialization_serializer(self):
-        se = SpecializationSerializer(self.specialization_1)
+        se = ser.SpecializationSerializer(self.specialization_1)
         print(se.data)
         self.assertEqual(se.data['name'], 'Mathematics')
 
@@ -336,18 +336,18 @@ class SpecializationModelSerializerTestCase(TestCase):
             'description': 'Study of matter and energy',
             'status': 'a',
         }
-        se = SpecializationSerializer(data=data)
+        se = ser.SpecializationSerializer(data=data)
         print(se.is_valid())
         print(se.errors)
         self.assertTrue(se.is_valid())
         se.save()
-        self.assertEqual(Specialization.objects.count(), 2)
+        self.assertEqual(mod.Specialization.objects.count(), 2)
 
     def test_serializer_update(self):
         change = {
             'description': 'Updated description for Mathematics',
         }
-        se = SpecializationSerializer(self.specialization_1, data=change, partial=True)
+        se = ser.SpecializationSerializer(self.specialization_1, data=change, partial=True)
         self.assertTrue(se.is_valid())
         se.save()
         self.specialization_1.refresh_from_db()
@@ -356,19 +356,19 @@ class SpecializationModelSerializerTestCase(TestCase):
         print(se.errors)
 
     def test_listing(self):
-        s2 = Specialization.objects.create(
+        s2 = mod.Specialization.objects.create(
             name='Chemistry',
             description='Study of substances and reactions',
             status='a',
         )
-        s3 = Specialization.objects.create(
+        s3 = mod.Specialization.objects.create(
             name='Biology',
             description='Study of living organisms',
             status='a',
         )
-        qs = Specialization.objects.all()
+        qs = mod.Specialization.objects.all()
         with CaptureQueriesContext(connection=connection) as ctx:
-            se = SpecializationSerializer(qs, many=True)
+            se = ser.SpecializationSerializer(qs, many=True)
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 3)
@@ -379,19 +379,19 @@ class UserSpecializationModelSerializerTestCase(TestCase):
             username='George',
             password='password123',
         )
-        self.specialization_1 = Specialization.objects.create(
+        self.specialization_1 = mod.Specialization.objects.create(
             name='History',
             description='Study of past events',
             status='a',
         )
-        self.user_specialization_1 = UserSpecialization.objects.create(
+        self.user_specialization_1 = mod.UserSpecialization.objects.create(
             user=self.user_1,
             specialization=self.specialization_1,
             status='a',
         )
 
     def test_user_specialization_model_serializer(self):
-        se = UserSpecializationSerializer(self.user_specialization_1)
+        se = ser.UserSpecializationSerializer(self.user_specialization_1)
         print(se.data)
         self.assertEqual(se.data['user'], self.user_1.id)
 
@@ -400,7 +400,7 @@ class UserSpecializationModelSerializerTestCase(TestCase):
             username='soman',
             password='1234',
         )
-        s2 = Specialization.objects.create(
+        s2 = mod.Specialization.objects.create(
             name='Mathematics',
             description='Study of numbers and shapes',
             status='a',
@@ -410,19 +410,19 @@ class UserSpecializationModelSerializerTestCase(TestCase):
             'specialization': s2.id,
             'status': 'a',
         }
-        se = UserSpecializationSerializer(data=data)
+        se = ser.UserSpecializationSerializer(data=data)
         print(se.is_valid())
         print(se.errors)
         self.assertTrue(se.is_valid())
         se.save()
         print(se.data)
-        self.assertEqual(UserSpecialization.objects.count(), 2)
+        self.assertEqual(mod.UserSpecialization.objects.count(), 2)
 
     def test_update(self):
         change = {
             'status': 'i',
         }
-        se = UserSpecializationSerializer(self.user_specialization_1, data=change, partial=True)
+        se = ser.UserSpecializationSerializer(self.user_specialization_1, data=change, partial=True)
         self.assertTrue(se.is_valid())
         se.save()
         self.user_specialization_1.refresh_from_db()
@@ -448,39 +448,39 @@ class UserSpecializationModelSerializerTestCase(TestCase):
             username='Karen',
             password='password123',
         )
-        s2 = Specialization.objects.create(
+        s2 = mod.Specialization.objects.create(
             name='Geography',
             description='Study of places and environments',
             status='a',
         )
-        s3 = Specialization.objects.create(
+        s3 = mod.Specialization.objects.create(
             name='Economics',
             description='Study of production and consumption',
             status='a',
         )
-        us2 = UserSpecialization.objects.create(
+        us2 = mod.UserSpecialization.objects.create(
             user=u2,
             specialization=s2,
             status='a', 
         )
-        us3 = UserSpecialization.objects.create(
+        us3 = mod.UserSpecialization.objects.create(
             user=u3,
             specialization=s3,
             status='a',
         )
-        us4 = UserSpecialization.objects.create(
+        us4 = mod.UserSpecialization.objects.create(
             user=u4,
             specialization=self.specialization_1,
             status='a',
         )
-        us5 = UserSpecialization.objects.create(
+        us5 = mod.UserSpecialization.objects.create(
             user=u5,
             specialization=s2,
             status='a',
         )
-        qs = UserSpecialization.objects.all().select_related('user', 'specialization')
+        qs = mod.UserSpecialization.objects.all().select_related('user', 'specialization')
         with CaptureQueriesContext(connection=connection) as ctx:
-            se = UserSpecializationSerializer(qs, many=True)
+            se = ser.UserSpecializationSerializer(qs, many=True)
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
