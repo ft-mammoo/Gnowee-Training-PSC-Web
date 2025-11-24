@@ -663,3 +663,61 @@ class UserDepartmentModelSerializerTestCase(TestCase):
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
+
+class DesignationModelSerializerTestCase(TestCase):
+    def setUp(self):
+        self.designation_1 = mod.Designation.objects.create(
+            name='Professor',
+            description='Senior academic staff member',
+            status='a',
+        )
+
+    def test_designation_model_serializer(self):
+        se = ser.DesignationModelSerializer(self.designation_1)
+        print(se.data)
+        self.assertEqual(se.data['name'], 'Professor')
+
+    def test_serializer_create(self):
+        data = {
+            'name': 'Assistant Professor',
+            'description': 'Junior academic staff member',
+            'status': 'a',
+        }
+        se = ser.DesignationModelSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(mod.Designation.objects.count(), 2)
+        print(se.data)
+
+    def test_serializer_update(self):
+        change = {
+            'description': 'Updated description for Professor',
+        }
+        se = ser.DesignationModelSerializer(self.designation_1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.designation_1.refresh_from_db()
+        self.assertEqual(self.designation_1.description, 'Updated description for Professor')
+        print(se.is_valid())
+        print(se.errors)
+        print(se.data)
+
+    def test_listing(self):
+        d2 = mod.Designation.objects.create(
+            name='Associate Professor',
+            description='Mid-level academic staff member',
+            status='a',
+        )
+        d3 = mod.Designation.objects.create(
+            name='Lecturer',
+            description='Entry-level academic staff member',
+            status='a',
+        )
+        qs = mod.Designation.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = ser.DesignationModelSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 3)
