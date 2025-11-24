@@ -56,3 +56,18 @@ class UserDepartmentModelSerializer(serializers.ModelSerializer):
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
 
+class DesignationModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Designation
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
+
+class UserDesignationModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.UserDesignation
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
