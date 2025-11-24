@@ -484,3 +484,72 @@ class UserSpecializationModelSerializerTestCase(TestCase):
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
+
+class DepartmentModelSerializerTestCase(TestCase):
+    def setUp(self):
+        self.d1 = mod.Department.objects.create(
+            name = 'Science',
+            description = 'Science Department',
+            status = 'a',
+        )
+    
+    def test_department_model_serializer(self):
+        se = ser.DepartmentModelSerializer(self.d1)
+        print(se.data)
+        self.assertEqual(se.data['name'], 'Science')
+
+    def test_serializer_create(self):
+        data = {
+            'name': 'Mathematics',
+            'description': 'Mathematics Department',
+            'status': 'a',
+        }
+        se = ser.DepartmentModelSerializer(data=data)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.assertEqual(mod.Department.objects.count(), 2)
+        print(se.data)
+
+    def test_serializer_update(self):
+        change = {
+            'description': 'Updated Science Department',
+        }
+        se = ser.DepartmentModelSerializer(self.d1, data=change, partial=True)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.d1.refresh_from_db()
+        self.assertEqual(self.d1.description, 'Updated Science Department')
+        print(se.is_valid())
+        print(se.errors)
+        print(se.data)
+
+    def test_listing(self):
+        d2 = mod.Department.objects.create(
+            name = 'Arts',
+            description = 'Arts Department',
+            status = 'a',
+        )
+        d3 = mod.Department.objects.create(
+            name = 'Commerce',
+            description = 'Commerce Department',
+            status = 'a',
+        )
+        d4 = mod.Department.objects.create(
+            name = 'Physical Education',
+            description = 'Physical Education Department',
+            status = 'a',
+        )
+        d5 = mod.Department.objects.create(
+            name = 'Computer Science',
+            description = 'Computer Science Department',
+            status = 'a',
+        )
+        qs = mod.Department.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = ser.DepartmentModelSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 5)
+
