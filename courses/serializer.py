@@ -1,9 +1,17 @@
 from rest_framework import serializers
-from courses.models import Course
+from courses import models
 
 class CourseSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Course
+        model = models.Course
+        fields = "__all__"
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
+
+class CourseTeacherSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CourseTeachers
         fields = "__all__"
         read_only_fields = [
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
