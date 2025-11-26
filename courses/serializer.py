@@ -16,3 +16,11 @@ class CourseTeacherSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
+
+class MaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Material
+        fields = "__all__"
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
