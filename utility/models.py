@@ -22,6 +22,8 @@ class SoftDeleteModelManager(models.Manager):
         return super().get_queryset().filter(status="a")
 
 class SoftDeleteModel(BaseModel):
+
+    status = models.CharField(max_length=1, default="a")
     objects = SoftDeleteModelManager()
     all_objects = models.Manager()
     
