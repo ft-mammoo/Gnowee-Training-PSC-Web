@@ -483,3 +483,69 @@ class SubmissionTest(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 5)
+    
+class SubmissionGradeTest(TestCase):
+    def setUp(self):
+        self.ut1 = User.objects.create_user(
+            username='testteacher1',
+            password='1234',
+        )
+        self.t1 = Teacher.objects.create(
+            user=self.ut1,
+            first_name='John',
+            last_name='Doe',            
+            dob='1997-01-01',
+            gender='m',
+            employee_code='1263234',
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='2K5@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        self.us1 = User.objects.create_user(
+            username='teststudent1',
+            password='1234',
+        )
+        self.s1 = Student.objects.create(
+            user=self.us1,
+            first_name='Jane',
+            last_name='Smith',            
+            date_of_birth=date(1990, 2, 2),
+            gender='f',
+            contact_number='2345678901', 
+            emergency_contact_name='John Doe',
+            emergency_contact_number='8765432109',
+            status='a', 
+            date_joined=date.today(),
+        )
+        self.c1 = Course.objects.create(
+            title='Chemistry 101',
+            description='Basic concepts in Chemistry.',
+            status='d',
+        )
+        self.a1 = models.Assignment.objects.create(
+            course=self.c1,
+            teacher=self.t1,
+            title='Chemistry Basics',
+            description='Basic concepts of Chemistry.',
+            due_date='2023-09-30',
+        )
+        self.sub1 = models.Submission.objects.create(
+            student=self.s1,
+            assignment=self.a1,
+            file_url='https://example.com/file1.pdf',
+            submitted_date='2023-09-30',
+            status='s',
+        )
+        self.subgr1 = models.SubmissionGrade.objects.create(
+            submission=self.sub1,
+            grade=90,
+            graded_by=self.t1,
+            feedback='Good job!',
+        )
+
+    def test_serializer(self):
+        se = serializer.SubmissionGradeSerializer(self.subgr1)
+        print(se.data)
