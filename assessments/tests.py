@@ -957,3 +957,79 @@ class ExamsTest(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 1)
+
+class ExamsQuestionsTest(TestCase):
+    def setUp(self):
+        self.qc1 = models.QuestionCategories.objects.create(
+            name = 'Mathematics',
+            description = 'Questions related to Mathematics.',
+        )
+        self.eq1 = models.ExamQuestions.objects.create(
+            category = self.qc1,
+            question_text = 'What is 2 + 2?',
+            question_type = 's',
+            marks = 1, 
+        )
+    def test_serializer(self):
+        se = serializer.ExamQuestionsSerializer(self.eq1)
+        print(se.data)
+    def test_create(self):
+        qc2 = models.QuestionCategories.objects.create(
+            name = 'Chemistry',
+            description = 'Questions related to Chemistry.',
+        )
+        data = {
+            'category': qc2.id,
+            'question_text': 'What is the boiling point of water?',
+            'question_type': 's',
+            'marks': 3,
+        }
+        se = serializer.ExamQuestionsSerializer(data=data)
+        self.assertTrue(se.is_valid(), se.errors)
+        se.save()
+        print(se.data)
+    def test_update(self):
+        change = {
+            'question_text': 'What is 4+4?',            
+        }
+        se = serializer.ExamQuestionsSerializer(self.eq1, data = change, partial = True)
+        self.assertTrue(se.is_valid(), se.errors)
+        se.save()
+        print(se.data)
+
+    def test_listing(self):
+        qc2 = models.QuestionCategories.objects.create(
+            name = 'General Knowledge',
+            description = 'Questions related to General Knowledge.',
+        )
+        eq2 = models.ExamQuestions.objects.create(
+            category = qc2,
+            question_text = 'What is the boiling point of water?',
+            question_type = 's',
+            marks = 3,
+        )
+        eq3 = models.ExamQuestions.objects.create(
+            category = qc2,
+            question_text = 'What is the boiling point of Gold?',
+            question_type = 's',
+            marks = 3,
+        )
+        eq4 = models.ExamQuestions.objects.create(
+            category = qc2,
+            question_text = 'What is the boiling point of Silver?',
+            question_type = 's',
+            marks = 3,
+        )
+        eq5 = models.ExamQuestions.objects.create(
+            category = qc2,
+            question_text = 'What is the boiling point of Iron?',
+            question_type = 's',
+            marks = 3,
+        )
+        qs = models.ExamQuestions.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.ExamQuestionsSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
+        self.assertLessEqual(len(ctx.captured_queries), 1)
+        self.assertEqual(len(se.data), 5)
