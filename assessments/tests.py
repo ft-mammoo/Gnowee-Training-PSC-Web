@@ -855,3 +855,105 @@ class QuestionCategoriesTest(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 1)
+
+class ExamsTest(TestCase):
+    def setUp(self):
+        self.c1 = Course.objects.create(
+            title = 'Mathematics',
+            description = 'Mathematics course',
+            status = 'a',
+        )
+        self.ex1 = models.Exams.objects.create(
+            course = self.c1,
+            title = 'Mathematics Exam',
+            description = 'Mathematics Exam',
+            start_time = '2023-09-30 09:00',
+            end_time = '2023-09-30 11:00',
+            total_marks = 100,
+        )
+    def test_serializer(self):
+        se = serializer.ExamsSerializer(self.ex1)
+        print(se.data)
+    def test_create(self):
+        data = {
+            'course': self.c1.id,
+            'title': 'Physics Exam',
+            'description': 'Physics Exam',
+            'start_time': '2023-09-30 09:00',
+            'end_time': '2023-09-30 11:00',
+            'total_marks': 100,
+        }
+        se = serializer.ExamsSerializer(data=data)
+        self.assertTrue(se.is_valid(), se.errors)
+        ex = se.save()
+        self.assertEqual(ex.title, 'Physics Exam')
+        print(se.data)
+    def test_update(self):
+        change = {
+            'title': 'Chemistry Exam',
+            'description': 'Chemistry Exam',
+        }
+        se = serializer.ExamsSerializer(self.ex1, data = change, partial = True)
+        self.assertTrue(se.is_valid(), se.errors)
+        ex = se.save()
+        self.assertEqual(ex.title, 'Chemistry Exam')
+        print(se.data)
+    def test_listing(self):
+        c2 = Course.objects.create(
+            title = 'Physics',
+            description = 'Physics course',
+            status = 'a',
+        )
+        c3 = Course.objects.create(
+            title = 'Chemistry',
+            description = 'Chemistry course',
+            status = 'a',
+        )
+        c4 = Course.objects.create(
+            title = 'Biology',
+            description = 'Biology course',
+            status = 'a',
+        )
+        c5 = Course.objects.create(
+            title = 'Geography',
+            description = 'Geography course',
+            status = 'a',
+        )
+        ex2 = models.Exams.objects.create(
+            course = c2,
+            title = 'Physics Exam',
+            description = 'Physics Exam',
+            start_time = '2023-09-30 09:00',
+            end_time = '2023-09-30 11:00',
+            total_marks = 100,
+        )
+        ex3 = models.Exams.objects.create(
+            course = c3,
+            title = 'Chemistry Exam',
+            description = 'Chemistry Exam',
+            start_time = '2023-09-30 09:00',
+            end_time = '2023-09-30 11:00',
+            total_marks = 100,
+        )
+        ex4 = models.Exams.objects.create(
+            course = c4,
+            title = 'Biology Exam',
+            description = 'Biology Exam',
+            start_time = '2023-09-29 09:00',
+            end_time = '2023-09-29 11:00',
+            total_marks = 100,
+        )
+        ex5 = models.Exams.objects.create(
+            course = c5,
+            title = 'Geography Exam',
+            description = 'Geography Exam',
+            start_time = '2023-10-31 09:00',
+            end_time = '2023-10-31 11:00',
+            total_marks = 100,
+        )
+        qs = models.Exams.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.ExamsSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
+        self.assertLessEqual(len(ctx.captured_queries), 1)
