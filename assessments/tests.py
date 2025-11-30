@@ -1422,3 +1422,72 @@ class ExamAnswerOptionsTest(TestCase):
             print (se.data)
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 1)
+    
+class ExamReviewsTest(TestCase):
+    def setUp(self):
+        self.c1 = Course.objects.create(
+            title = 'Mathematics',
+            description = 'Mathematics course',
+            status = 'a',
+        )
+        self.ex1 = models.Exams.objects.create(
+            course = self.c1,
+            title = 'Mathematics Exam',
+            description = 'Mathematics Exam',
+            start_time = timezone.make_aware(datetime(2023, 9, 30, 9, 0)),
+            end_time = timezone.make_aware(datetime(2023, 9, 30, 11, 0)),
+            total_marks = 100,
+        )
+        self.us1 = User.objects.create_user(
+            username = 'student1',
+            password = 'password123',
+        )
+        self.s1 = Student.objects.create(
+            user = self.us1,
+            first_name = 'John',
+            last_name = 'Doe',
+            date_of_birth = '1997-01-01',
+            gender = 'm',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Jane Doe',
+            emergency_contact_number = '9876543210',
+            status = 'a',
+            date_joined = date.today(),
+        )
+        self.es1 = models.ExamSubmissions.objects.create(
+            student = self.s1,
+            exam = self.ex1,
+        )
+        self.ut1 = User.objects.create_user(
+            username = 'teacher1',
+            password = 'password123',
+        )
+        self.t1 = Teacher.objects.create(
+            user = self.ut1,
+            first_name = 'John',
+            last_name = 'Doe',
+            dob = '1997-01-01',
+            gender = 'm',
+            employee_code = '1234',
+            experience_years = 10,
+            contact_number = '1234567890',
+            emergency_contact_number = '9876543210',
+            email_institutional = '2GK5V@example.com',
+            status = 'a',
+        )
+        self.er1 = models.ExamReviews.objects.create(
+            exam_submission = self.es1,
+            score = 80,
+            graded_by = self.t1,
+            feedback = 'Good job!',            
+        )
+    def test_serializer(self):
+        se = serializer.ExamReviewsSerializer(self.er1)
+        print(se.data)
+    def test_listing(self):
+        qs = models.ExamReviews.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.ExamReviewsSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 1)
