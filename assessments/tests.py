@@ -1113,3 +1113,71 @@ class QuestionOptionsTest(TestCase):
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 1)
         self.assertEqual(len(se.data), 5)
+
+class ExamQuestionsMappingTest(TestCase):
+    def setUp(self):
+        self.c1 = Course.objects.create(
+            title = 'Mathematics',
+            description = 'Mathematics Course',
+            status = 'a',
+        )
+        self.ex1 = models.Exams.objects.create(
+            course = self.c1,
+            title = 'Mathematics Exam',
+            description = 'Mathematics Exam',
+            start_time = '2023-09-30 09:00',
+            end_time = '2023-09-30 11:00',
+            total_marks = 100,
+        )
+        self.qc1 = models.QuestionCategories.objects.create(
+            name = 'Mathematics',
+            description = 'Questions related to Mathematics.',
+        )
+        self.eq1 = models.ExamQuestions.objects.create(
+            category = self.qc1,
+            question_text = 'What is 2 + 2?',
+            question_type = 's',
+            marks = 1, 
+        )
+        self.eqm1 = models.ExamQuestionsMapping.objects.create(
+            exam = self.ex1,
+            question = self.eq1,
+        )
+    def test_serializer(self):
+        se = serializer.ExamQuestionsMappingSerializer(self.eqm1)
+        print(se.data)
+    def test_listing(self):
+        c2 = Course.objects.create(
+            title = 'Physics',
+            description = 'Physics Course',
+            status = 'a',
+        )
+        ex2 = models.Exams.objects.create(
+            course = c2,
+            title = 'Physics Exam',
+            description = 'Physics Exam',
+            start_time = '2023-09-30 09:00',
+            end_time = '2023-09-30 11:00',
+            total_marks = 100,
+        )
+        qc2 = models.QuestionCategories.objects.create(
+            name = 'Physics',
+            description = 'Questions related to Physics.',
+        )
+        eq2 = models.ExamQuestions.objects.create(
+            category = qc2,
+            question_text = 'What is the boiling point of water?',
+            question_type = 's',
+            marks = 3,
+        )
+        eqm2 = models.ExamQuestionsMapping.objects.create(
+            exam = ex2,
+            question = eq2,
+        )
+        qs = models.ExamQuestionsMapping.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.ExamQuestionsMappingSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
+        self.assertLessEqual(len(ctx.captured_queries), 1)
+        self.assertEqual(len(se.data), 2)

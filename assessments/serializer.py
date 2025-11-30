@@ -56,3 +56,11 @@ class QuestionOptionsSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
+
+class ExamQuestionsMappingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ExamQuestionsMapping
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]
