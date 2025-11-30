@@ -1033,3 +1033,83 @@ class ExamsQuestionsTest(TestCase):
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 1)
         self.assertEqual(len(se.data), 5)
+
+class QuestionOptionsTest(TestCase):
+    def setUp(self):
+        self.qc1 = models.QuestionCategories.objects.create(
+            name = 'Mathematics',
+            description = 'Questions related to Mathematics.',
+        )
+        self.q1 = models.ExamQuestions.objects.create(
+            category = self.qc1,
+            question_text = 'What is 2 + 2?',
+            question_type = 's',
+            marks = 1, 
+        )
+        self.qo1 = models.QuestionOptions.objects.create(
+            question = self.q1,
+            option_code = 'A',
+            option_text = '4',
+            is_correct = True,
+        )
+    def test_serializer(self):
+        se = serializer.QuestionOptionsSerializer(self.qo1)
+        print(se.data)
+    def test_create(self):
+        data = {
+            'question': self.q1.id,
+            'option_code': 'B',
+            'option_text': '2',
+            'is_correct': False,
+        }
+        se = serializer.QuestionOptionsSerializer(data=data)
+        self.assertTrue(se.is_valid(), se.errors)
+        se.save()
+        print(se.data)
+    def test_update(self):
+        change = {
+            'option_text': '3',
+            'is_correct': False,            
+        }
+        se = serializer.QuestionOptionsSerializer(self.qo1, data = change, partial = True)
+        self.assertTrue(se.is_valid(), se.errors)
+        se.save()
+        print(se.data)
+    def test_listing(self):
+        q2 = models.ExamQuestions.objects.create(
+            category = self.qc1,
+            question_text = 'What is 4 + 4?',
+            question_type = 's',
+            marks = 1, 
+        )
+        qo2 = models.QuestionOptions.objects.create(
+            question = q2,
+            option_code = 'A',
+            option_text = '8',
+            is_correct = True,
+        )
+        qo3 = models.QuestionOptions.objects.create(
+            question = q2,
+            option_code = 'B',
+            option_text = '4',
+            is_correct = False,
+        )
+        qo4 = models.QuestionOptions.objects.create(
+            question = q2,
+            option_code = 'C',
+            option_text = '2',
+            is_correct = False,
+        )
+        qo5 = models.QuestionOptions.objects.create(
+            question = q2,
+            option_code = 'D',
+            option_text = '6',
+            is_correct = False,
+        )
+        qs = models.QuestionOptions.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.QuestionOptionsSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
+        self.assertLessEqual(len(ctx.captured_queries), 1)
+        self.assertEqual(len(se.data), 5)
