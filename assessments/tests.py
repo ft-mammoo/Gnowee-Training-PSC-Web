@@ -802,3 +802,56 @@ class SubmissionGradeTest(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 1)
+
+class QuestionCategoriesTest(TestCase):
+    def setUp(self):
+        self.qc1 = models.QuestionCategories.objects.create(
+            name='Mathematics',
+            description='Questions related to Mathematics.',
+        )
+    def test_serializer(self):
+        se = serializer.QuestionCategoriesSerializer(self.qc1)
+        print(se.data)
+    def test_create(self):
+        data = {
+            'name': 'Physics',
+            'description': 'Questions related to Physics.',
+        }
+        se = serializer.QuestionCategoriesSerializer(data=data)
+        self.assertTrue(se.is_valid(), se.errors)
+        qc = se.save()
+        self.assertEqual(qc.name, 'Physics')
+        print(se.data)
+    def test_update(self):
+        change = {
+            'name': 'Chemistry',
+            'description': 'Questions related to Chemistry.',
+        }
+        se = serializer.QuestionCategoriesSerializer(self.qc1, data = change, partial = True)
+        self.assertTrue(se.is_valid(), se.errors)
+        qc = se.save()
+        self.assertEqual(qc.name, 'Chemistry')
+        print(se.data)
+    def test_listing(self):
+        qc2 = models.QuestionCategories.objects.create(
+            name='Physics',
+            description='Questions related to Physics.',
+        )
+        qc3 = models.QuestionCategories.objects.create(
+            name='Chemistry',
+            description='Questions related to Chemistry.',
+        )
+        qc4 = models.QuestionCategories.objects.create(
+            name='Biology',
+            description='Questions related to Biology.',
+        )
+        qc5 = models.QuestionCategories.objects.create(
+            name='Geography',
+            description='Questions related to Geography.',
+        )
+        qs = models.QuestionCategories.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.QuestionCategoriesSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
+        self.assertLessEqual(len(ctx.captured_queries), 1)
