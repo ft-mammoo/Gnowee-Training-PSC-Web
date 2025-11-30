@@ -17,3 +17,10 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
         ]
 
+class SubmissionGradeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SubmissionGrade
+        fields = '__all__'
+        read_only_fields = [
+            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
+        ]

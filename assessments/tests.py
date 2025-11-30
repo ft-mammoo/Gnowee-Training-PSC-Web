@@ -483,3 +483,322 @@ class SubmissionTest(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 5)
+    
+class SubmissionGradeTest(TestCase):
+    def setUp(self):
+        self.ut1 = User.objects.create_user(
+            username='testteacher1',
+            password='1234',
+        )
+        self.t1 = Teacher.objects.create(
+            user=self.ut1,
+            first_name='John',
+            last_name='Doe',            
+            dob='1997-01-01',
+            gender='m',
+            employee_code='1263234',
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='2K5@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        self.us1 = User.objects.create_user(
+            username='teststudent1',
+            password='1234',
+        )
+        self.s1 = Student.objects.create(
+            user=self.us1,
+            first_name='Jane',
+            last_name='Smith',            
+            date_of_birth=date(1990, 2, 2),
+            gender='f',
+            contact_number='2345678901', 
+            emergency_contact_name='John Doe',
+            emergency_contact_number='8765432109',
+            status='a', 
+            date_joined=date.today(),
+        )
+        self.c1 = Course.objects.create(
+            title='Chemistry 101',
+            description='Basic concepts in Chemistry.',
+            status='d',
+        )
+        self.a1 = models.Assignment.objects.create(
+            course=self.c1,
+            teacher=self.t1,
+            title='Chemistry Basics',
+            description='Basic concepts of Chemistry.',
+            due_date='2023-09-30',
+        )
+        self.sub1 = models.Submission.objects.create(
+            student=self.s1,
+            assignment=self.a1,
+            file_url='https://example.com/file1.pdf',
+            submitted_date='2023-09-30',
+            status='s',
+        )
+        self.subgr1 = models.SubmissionGrade.objects.create(
+            submission=self.sub1,
+            grade=90,
+            graded_by=self.t1,
+            feedback='Good job!',
+        )
+
+    def test_serializer(self):
+        se = serializer.SubmissionGradeSerializer(self.subgr1)
+        print(se.data)
+
+    def test_update(self):
+        change = {
+            'grade': 100,
+        }
+        se = serializer.SubmissionGradeSerializer(self.subgr1, data=change, partial=True)
+        print(se.is_valid())
+        print(se.errors)
+        self.assertTrue(se.is_valid())
+        se.save()
+        self.subgr1.refresh_from_db()
+        self.assertEqual(self.subgr1.grade, 100)
+        print(se.data)
+
+    def test_list(self):
+        ut2 = User.objects.create_user(
+            username='testteacher2',
+            password='1234',
+        )
+        ut3 = User.objects.create_user(
+            username='testteacher3',
+            password='1234',
+        )
+        ut4 = User.objects.create_user(
+            username='testteacher4',
+            password='1234',
+        )
+        ut5 = User.objects.create_user(
+            username='testteacher5',
+            password='1234',
+        )
+        t2 = Teacher.objects.create(
+            user=ut2,
+            first_name='Johen',
+            last_name='Doe',            
+            dob='1997-01-01',
+            gender='m',
+            employee_code='32442',
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='2Ksfd5@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        t3 = Teacher.objects.create(
+            user=ut3,
+            first_name='Joqhn',
+            last_name='Doe',            
+            dob='1997-01-01',
+            gender='m',
+            employee_code='54543',
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='2Kew5@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        t4 = Teacher.objects.create(
+            user=ut4,
+            first_name='Joehne',
+            last_name='Docde',            
+            dob='1997-01-01',
+            gender='m',
+            employee_code='efcdsd',
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='2Kdcew5@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        t5 = Teacher.objects.create(
+            user=ut5,
+            first_name='Joqehne',
+            last_name='Dode',            
+            dob='1997-01-01',
+            gender='f',
+            employee_code='efcdcd',
+            experience_years=10,
+            contact_number='1234567890', 
+            emergency_contact_number='9876543210',
+            email_institutional='2Kzcdcew5@example.com',
+            status='a', 
+            date_joined=date.today(),
+        )
+        c2 = Course.objects.create(
+            title='Chemistry 101',
+            description='Basic concepts in Chemistry.',
+            status='d',
+        )
+        c3 = Course.objects.create(
+            title='Mathematics 101',
+            description='Basic concepts in Mathematics.',
+            status='d',
+        )
+        c4 = Course.objects.create(
+            title='Physics 101',
+            description='Basic concepts in Physics.',
+            status='d',
+        )
+        c5 = Course.objects.create(
+            title='Biology 101',
+            description='Basic concepts in Biology.',
+            status='d',
+        )
+        a2 = models.Assignment.objects.create(
+            course=c2,
+            teacher=t2,
+            title='Chemistry Basics',
+            description='Basic concepts of Chemistry.',
+            due_date='2023-09-30',
+        )
+        a3 = models.Assignment.objects.create(
+            course=c3,
+            teacher=t3,
+            title='Mathematics Basics',
+            description='Basic concepts of Mathematics.',
+            due_date='2023-09-30',
+        )
+        a4 = models.Assignment.objects.create(
+            course=c4,
+            teacher=t4,
+            title='Physics Basics',
+            description='Basic concepts of Physics.',
+            due_date='2023-09-30',
+        )
+        a5 = models.Assignment.objects.create(
+            course=c5,
+            teacher=t5,
+            title='Biology Basics',
+            description='Basic concepts of Biology.',
+            due_date='2023-09-30',
+        )
+        us2 = User.objects.create_user(
+            username='teststudent2',
+            password='1234',
+        )
+        us3 = User.objects.create_user(
+            username='teststudent3',
+            password='1234',
+        )
+        us4 = User.objects.create_user(
+            username='teststudent4',
+            password='1234',
+        )
+        us5 = User.objects.create_user(
+            username='teststudent5',
+            password='1234',
+        )
+        s2 = Student.objects.create(
+            user = us2,
+            first_name = 'Bibi',
+            last_name = 'Nun',
+            date_of_birth = '2000-01-01',
+            gender = 'f',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Jane Doe',  
+            emergency_contact_number = '9876543210',
+            status = 'a', 
+            date_joined = date.today(),
+        )
+        s3 = Student.objects.create(
+            user = us3,
+            first_name = 'Alina',
+            last_name = 'Becker',
+            date_of_birth = '1996-01-01',
+            gender = 'f',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Alison Becker',  
+            emergency_contact_number = '9876543210',
+            status = 'a', 
+            date_joined = date.today(),
+        )
+        s4 = Student.objects.create(
+            user = us4,
+            first_name = 'Alison',
+            last_name = 'Becker',
+            date_of_birth = '1996-01-01',
+            gender = 'm',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Alina Becker',  
+            emergency_contact_number = '9876543210',
+            status = 'a', 
+            date_joined = date.today(),
+        )
+        s5 = Student.objects.create(
+            user = us5,
+            first_name = 'Lionel',
+            last_name = 'Messi',
+            date_of_birth = '1996-01-01',
+            gender = 'f',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Cristiano Ronaldo',  
+            emergency_contact_number = '9876543210',
+            status = 'a', 
+            date_joined = date.today(),
+        )
+        sb2 = models.Submission.objects.create(
+            assignment=a2,
+            student=s2,
+            submitted_date='2023-09-30',
+            status='a',
+        )
+        sb3 = models.Submission.objects.create(
+            assignment=a3,
+            student=s3,
+            submitted_date='2023-09-30',
+            status='a',
+        )
+        sb4 = models.Submission.objects.create(
+            assignment=a4,
+            student=s4,
+            submitted_date='2023-09-30',
+            status='a',
+        )
+        sb5 = models.Submission.objects.create(
+            assignment=a5,
+            student=s5,
+            submitted_date='2023-09-30',
+            status='a',
+        )
+        sg2 = models.SubmissionGrade.objects.create(
+            submission=sb2,
+            grade=90,
+            graded_by=t2,
+            feedback='Good job!',
+        )
+        sg3 = models.SubmissionGrade.objects.create(
+            submission=sb3,
+            grade=80,
+            graded_by=t3,
+            feedback='Good job!',
+        )
+        sg4 = models.SubmissionGrade.objects.create(
+            submission=sb4,
+            grade=70,
+            graded_by=t4,
+            feedback='Good job!',
+        )
+        sg5 = models.SubmissionGrade.objects.create(
+            submission=sb5,
+            grade=60,
+            graded_by=t5,
+            feedback='Good job!',
+        )
+        qs = models.SubmissionGrade.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.SubmissionGradeSerializer(qs, many=True)
+            print(se.data)
+        print(ctx.captured_queries)
+        self.assertLessEqual(len(ctx.captured_queries), 1)
