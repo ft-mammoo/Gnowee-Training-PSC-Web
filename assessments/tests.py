@@ -1,6 +1,7 @@
 from django.test import TestCase
 from assessments import models, serializer
 from datetime import date, datetime
+from django.utils import timezone
 from courses.models import Course
 from staffs.models import Teacher
 from students.models import Student
@@ -1212,3 +1213,125 @@ class ExamSubmissionsTest(TestCase):
             emergency_contact_number = '9876543210',
             status = 'a',
         )
+
+class ExamAnswersTest(TestCase):
+    def setUp(self): 
+        self.c1 = Course.objects.create(
+            title = 'Mathematics',
+            description = 'Mathematics course',
+            status = 'a',
+        )
+        self.ex1 = models.Exams.objects.create(
+            course = self.c1,
+            title = 'Mathematics Exam',
+            description = 'Mathematics Exam',
+            start_time = timezone.make_aware(datetime(2023, 9, 30, 9, 0)),
+            end_time = timezone.make_aware(datetime(2023, 9, 30, 11, 0)),
+            total_marks = 100,
+        )
+        self.us1 = User.objects.create_user(
+            username = 'student1',
+            password = 'password123',
+        )
+        self.s1 = Student.objects.create(
+            user = self.us1,
+            first_name = 'John',
+            last_name = 'Doe',
+            date_of_birth = '1997-01-01',
+            gender = 'm',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Jane Doe',
+            emergency_contact_number = '9876543210',
+            status = 'a',
+            date_joined = date.today(),
+        )
+        self.es1 = models.ExamSubmissions.objects.create(
+            student = self.s1,
+            exam = self.ex1,
+        )
+        self.qc1 = models.QuestionCategories.objects.create(
+            name = 'Mathematics',
+            description = 'Questions related to Mathematics.',
+        )
+        self.q1 = models.ExamQuestions.objects.create(
+            category = self.qc1,
+            question_text = 'What is 2 + 2?',
+            question_type = 's',
+            marks = 1, 
+        )
+        self.qo1 = models.QuestionOptions.objects.create(
+            question = self.q1,
+            option_code = 'A',
+            option_text = '4',
+            is_correct = True,
+        )
+        self.ea1 = models.ExamAnswers.objects.create(
+            exam_submission = self.es1,
+            question = self.q1,
+            answer_text = '4',
+        )
+    def test_serializer(self):
+        se = serializer.ExamAnswersSerializer(self.ea1)
+        print(se.data)
+        self.assertEqual(se.data['answer_text'], '4')
+    def test_listing(self):
+        c2 = Course.objects.create(
+            title = 'Physics',
+            description = 'Physics Course',
+            status = 'a',
+        )
+        ex2 = models.Exams.objects.create(
+            course = c2,
+            title = 'Physics Exam',
+            description = 'Physics Exam',
+            start_time = timezone.make_aware(datetime(2023, 9, 30, 9, 0)),
+            end_time = timezone.make_aware(datetime(2023, 9, 30, 11, 0)),
+            total_marks = 100,
+        )
+        us2 = User.objects.create_user(
+            username = 'student2',
+            password = 'password123',
+        )
+        s2 = Student.objects.create(
+            user = us2,
+            first_name = 'Jane',
+            last_name = 'Doe',
+            date_of_birth = '1997-01-01',
+            gender = 'f',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Jane Doe',
+            emergency_contact_number = '9876543210',
+            status = 'a',
+            date_joined = date.today(),
+        )
+        es2 = models.ExamSubmissions.objects.create(
+            student = s2,
+            exam = ex2,
+        )
+        qc2 = models.QuestionCategories.objects.create(
+            name = 'Physics',
+            description = 'Questions related to Physics.',
+        )
+        q2 = models.ExamQuestions.objects.create(
+            category = qc2,
+            question_text = 'What is 2 + 2?',
+            question_type = 's',
+            marks = 1, 
+        )
+        qo2 = models.QuestionOptions.objects.create(
+            question = q2,
+            option_code = 'A',
+            option_text = '4',
+            is_correct = True,
+        )
+        ea2 = models.ExamAnswers.objects.create(
+            exam_submission = es2,
+            question = q2,
+            answer_text = '4',
+        )
+        qs = models.ExamAnswers.objects.all()
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = serializer.ExamAnswersSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
+        self.assertEqual(len(se.data), 2)
