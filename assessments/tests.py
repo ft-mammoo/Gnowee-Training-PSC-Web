@@ -1181,3 +1181,34 @@ class ExamQuestionsMappingTest(TestCase):
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 1)
         self.assertEqual(len(se.data), 2)
+
+class ExamSubmissionsTest(TestCase):
+    def setUp(self):
+        self.c1 = Course.objects.create(
+            title = 'Mathematics',
+            description = 'Mathematics course',
+            status = 'a',
+        )
+        self.ex1 = models.Exams.objects.create(
+            course = self.c1,
+            title = 'Mathematics Exam',
+            description = 'Mathematics Exam',
+            start_time = '2023-09-30 09:00',
+            end_time = '2023-09-30 11:00',
+            total_marks = 100,
+        )
+        self.us1 = User.objects.create_user(
+            username = 'student1',
+            password = 'password123',
+        )
+        self.s1 = Student.objects.create(
+            user = self.us1,
+            first_name = 'John',
+            last_name = 'Doe',
+            date_of_birth = '1997-01-01',
+            gender = 'm',
+            contact_number = '1234567890',
+            emergency_contact_name = 'Jane Doe',
+            emergency_contact_number = '9876543210',
+            status = 'a',
+        )
