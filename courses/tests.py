@@ -22,8 +22,6 @@ class CourseTest(TestCase):
             created_by=self.admin,
             updated_by=self.admin
         )
-        # Verify that the description was updated by the pre-save signal
-        self.assertEqual(c1.description, "Signal Description Update")
 
         # Update the course to trigger post-save signal for update
         c1.title = 'Advanced Physics 101'

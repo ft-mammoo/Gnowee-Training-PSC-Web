@@ -1,73 +1,47 @@
-from rest_framework import serializers
 from staffs import models
+from utility.serializer import BaseSerializer
 
-class TeacherModelSerializer(serializers.ModelSerializer):
-    class Meta:
+class TeacherModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Teacher
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class QualificationModelSerializer(serializers.ModelSerializer):
-    class Meta:
+class QualificationModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Qualification
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class UserQualificationModelSerializer(serializers.ModelSerializer):
-    class Meta:
+class UserQualificationModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.UserQualification
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class SpecializationSerializer(serializers.ModelSerializer):
-    class Meta:
+class SpecializationSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Specialization
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class UserSpecializationSerializer(serializers.ModelSerializer):
-    class Meta:
+class UserSpecializationSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.UserSpecialization
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class DepartmentModelSerializer(serializers.ModelSerializer):
-    class Meta:
+class DepartmentModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Department
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
-class UserDepartmentModelSerializer(serializers.ModelSerializer):
-    class Meta:
+
+class UserDepartmentModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.UserDepartment
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class DesignationModelSerializer(serializers.ModelSerializer):
-    class Meta:
+class DesignationModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Designation
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class UserDesignationModelSerializer(serializers.ModelSerializer):
-    class Meta:
+class UserDesignationModelSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.UserDesignation
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]

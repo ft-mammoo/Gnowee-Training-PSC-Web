@@ -1,98 +1,62 @@
-from rest_framework import serializers
 from assessments import models
+from utility.serializer import BaseSerializer
 
-class AssignmentSerializer(serializers.ModelSerializer):
-    class Meta:
+class AssignmentSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Assignment
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class SubmissionSerializer(serializers.ModelSerializer):
-    class Meta:
+class SubmissionSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Submission
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class SubmissionGradeSerializer(serializers.ModelSerializer):
-    class Meta:
+class SubmissionGradeSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.SubmissionGrade
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class QuestionCategoriesSerializer(serializers.ModelSerializer):
-    class Meta:
+class QuestionCategoriesSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.QuestionCategories
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamsSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamsSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Exams
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamQuestionsSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamQuestionsSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.ExamQuestions
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class QuestionOptionsSerializer(serializers.ModelSerializer):
-    class Meta:
+class QuestionOptionsSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.QuestionOptions
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamQuestionsMappingSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamQuestionsMappingSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.ExamQuestionsMapping
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamSubmissionsSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamSubmissionsSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.ExamSubmissions
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamAnswersSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamAnswersSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.ExamAnswers
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamAnswerOptionsSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamAnswerOptionsSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.ExamAnswerOptions
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class ExamReviewsSerializer(serializers.ModelSerializer):
-    class Meta:
+class ExamReviewsSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.ExamReviews
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
