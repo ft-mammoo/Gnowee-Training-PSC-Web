@@ -1,20 +1,15 @@
 from rest_framework import serializers
 from communication import models
 from courses.models import Course
+from utility.serializer import BaseSerializer
 
-class chatSerializer(serializers.ModelSerializer):
-    class Meta:
+class chatSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
         model = models.Chat
         fields = "__all__"
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
-class chatResponseSerializer(serializers.ModelSerializer):
+class chatResponseSerializer(BaseSerializer):
     course = serializers.PrimaryKeyRelatedField(queryset=Course.all_objects.all())
-    class Meta:
+    class Meta(BaseSerializer.Meta):
         model = models.ChatResponse
         fields = "__all__"
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
