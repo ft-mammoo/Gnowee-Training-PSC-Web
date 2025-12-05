@@ -1,9 +1,9 @@
 from datetime import date
 from rest_framework import serializers
 from courses.serializer import CourseSerializer
-from courses.models import Course
 from utility.models import User
 from students import models
+from utility.serializer import BaseSerializer
 
 class StudentSerializer(serializers.Serializer):
     GENDER_CHOICES = (
@@ -40,14 +40,11 @@ class StudentSerializer(serializers.Serializer):
         instance.save()
         return instance
     
-class StudentModelSerializer(serializers.ModelSerializer):
+class StudentModelSerializer(BaseSerializer):
     age = serializers.SerializerMethodField()
-    class Meta:
+    class Meta(BaseSerializer.Meta):
         model = models.Student
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
     
     def get_age(self, instance):
         return date.today().year - instance.date_of_birth.year
@@ -57,14 +54,11 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username']
 
-class StudentNestedSerializer(serializers.ModelSerializer):
+class StudentNestedSerializer(BaseSerializer):
     user = UserSerializer()
-    class Meta:
+    class Meta(BaseSerializer.Meta):
         model = models.Student
         fields = "__all__"
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -72,15 +66,12 @@ class StudentNestedSerializer(serializers.ModelSerializer):
         student = models.Student.objects.create(user=user, **validated_data)
         return student
     
-class StudentAndCourseNestedSerializer(serializers.ModelSerializer):
+class StudentAndCourseNestedSerializer(BaseSerializer):
     user = UserSerializer()
     courses = CourseSerializer(read_only=True, many=True)
-    class Meta:
+    class Meta(BaseSerializer.Meta):
         model = models.Student
         fields = "__all__"
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -89,11 +80,8 @@ class StudentAndCourseNestedSerializer(serializers.ModelSerializer):
         return student
     
 
-class StudentEnrollmentModelSerializer(serializers.ModelSerializer):
+class StudentEnrollmentModelSerializer(BaseSerializer):
     
-    class Meta:
+    class Meta(BaseSerializer.Meta):
         model = models.Enrollment
         fields = '__all__'
-        read_only_fields = [
-            'id', 'created_by', 'updated_by', 'created_date', 'updated_date'
-        ]
