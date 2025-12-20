@@ -1,7 +1,7 @@
 from django.db import models
 from utility.models import BaseModel, SoftDeleteModel
 
-class Course(SoftDeleteModel):
+class Course(BaseModel):
     STATUS_CHOICES = (
         ('d', 'Draft'),
         ('p', 'Published'),
