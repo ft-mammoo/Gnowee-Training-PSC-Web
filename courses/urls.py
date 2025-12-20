@@ -10,4 +10,7 @@ urlpatterns = [
     path('cb/courses/', views.CourseView.as_view(), name='course_view'),
     path('cb/courses/<int:pk>/', views.CourseDetailedView.as_view(), name='course_detail_cb_view'),
     path('cb/courses/<int:pk>/<str:action>/', views.CourseActionsView.as_view(), name='course_detail_cb_view'),
+    # Generic Class-based Views Urls
+    path('gen/courses/', views.CourseGenericView.as_view(), name='course_generic_view'),
+    path('gen/courses/<int:pk>/', views.CourseDetailGenericView.as_view(), name='course_detail_generic_view'),
 ]
