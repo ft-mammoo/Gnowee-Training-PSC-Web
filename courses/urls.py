@@ -1,5 +1,9 @@
 from django.urls import include, path
 from courses import views
+from rest_framework.routers import SimpleRouter
+
+router = SimpleRouter()
+router.register('courses', views.CourseViewSet, basename='course')
 
 urlpatterns = [
     # Function-based Views Urls
@@ -13,4 +17,6 @@ urlpatterns = [
     # Generic Class-based Views Urls
     path('gen/courses/', views.CourseGenericView.as_view(), name='course_generic_view'),
     path('gen/courses/<int:pk>/', views.CourseDetailGenericView.as_view(), name='course_detail_generic_view'),
+    # ViewSet Urls
+    path('', include(router.urls)),
 ]
