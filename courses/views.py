@@ -1,7 +1,8 @@
 from rest_framework.decorators import api_view, action
 from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet,GenericViewSet
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin
 from rest_framework.response import Response
 from rest_framework import status
 from courses import models, serializer
@@ -139,3 +140,12 @@ class CourseViewSet(ModelViewSet):
         qs = Student.objects.filter(enrollments__course__id=pk)
         se = StudentModelSerializer(qs, many=True)
         return Response(data=se.data, status=status.HTTP_200_OK)
+class CourseMixinViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin, GenericViewSet):
+    queryset = models.Course.objects.all()
+    serializer_class = serializer.CourseSerializer
+    @action(methods=["GET"], detail=True)
+    def students(self, req, pk):
+        qs = Student.objects.filter(enrollments__course__id=pk)
+        se = StudentModelSerializer(qs, many=True)
+        return Response(data=se.data, status=status.HTTP_200_OK)
+

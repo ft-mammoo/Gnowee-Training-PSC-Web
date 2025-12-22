@@ -4,6 +4,7 @@ from rest_framework.routers import SimpleRouter
 
 router = SimpleRouter()
 router.register('courses', views.CourseViewSet, basename='course')
+router.register('courses-mixin', views.CourseMixinViewSet, basename='course-mixin')
 
 urlpatterns = [
     # Function-based Views Urls
