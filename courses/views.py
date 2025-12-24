@@ -9,7 +9,7 @@ from rest_framework import status
 from courses import models, serializer
 from students.models import Student
 from students.serializer import StudentModelSerializer
-from utility.views import BasedViewPagination
+from utility.views import BaseViewPagination
 
 # Function-based views for Course model
 @api_view(["GET", "POST"])
@@ -144,7 +144,7 @@ class CourseViewSet(ModelViewSet):
     queryset = models.Course.objects.all()
     serializer_class = serializer.CourseSerializer
     filterset_class = CourseFilter
-    pagination_class = BasedViewPagination
+    pagination_class = BaseViewPagination
     @action(methods=["GET"], detail=True)
     def students(self, req, pk):
         qs = Student.objects.filter(enrollments__course__id=pk)
