@@ -1,3 +1,4 @@
+import django_filters
 from rest_framework.decorators import api_view, action
 from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
@@ -132,9 +133,16 @@ class CourseGenericView(ListCreateAPIView):
 class CourseDetailGenericView(RetrieveUpdateDestroyAPIView):
     queryset = models.Course.objects.all()
     serializer_class = serializer.CourseSerializer
+class CourseFilter(django_filters.FilterSet):
+    title = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
+    description = django_filters.CharFilter(field_name="description", lookup_expr="icontains")
+    class Meta:
+        model = models.Course
+        fields = ("id", "title", "description", "status")
 class CourseViewSet(ModelViewSet):
     queryset = models.Course.objects.all()
     serializer_class = serializer.CourseSerializer
+    filterset_class = CourseFilter
     @action(methods=["GET"], detail=True)
     def students(self, req, pk):
         qs = Student.objects.filter(enrollments__course__id=pk)
