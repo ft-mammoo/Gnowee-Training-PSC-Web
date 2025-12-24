@@ -6,6 +6,8 @@ from staffs.models import Teacher
 from courses import serializer
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
+from rest_framework.test import APITestCase
+from rest_framework import status
 
 User = get_user_model()
 
@@ -429,3 +431,29 @@ class MaterialSerializerTest(TestCase):
             print(se.data)
         print(ctx.captured_queries)
         self.assertLessEqual(len(ctx.captured_queries), 5)
+
+class CourseViewTest(APITestCase):
+    def test_course_crud(self):
+        resp = self.client.post("/courses/courses/", {
+            "title": "Test Course",
+            "description": "This is a test course.",
+        }, format='json')
+        self.assertTrue(resp.status_code == status.HTTP_201_CREATED)
+
+        resp = self.client.get("/courses/courses/")
+        print(resp.data)
+        self.assertTrue(resp.status_code == status.HTTP_200_OK)
+        self.assertTrue(len(resp.data['results']) == 1)
+
+        resp = self.client.patch("/courses/courses/1/", {
+            "description": "Updated description.",
+        }, format='json')
+        resp = self.client.get("/courses/courses/1/")
+        print(resp.data)
+        self.assertTrue(resp.data['description'] == "Updated description.")
+        self.assertTrue(resp.status_code == status.HTTP_200_OK)
+
+        resp = self.client.delete("/courses/courses/1/")
+        self.assertTrue(resp.status_code == status.HTTP_204_NO_CONTENT)
+        
+
