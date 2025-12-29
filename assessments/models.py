@@ -4,7 +4,7 @@ from utility.models import BaseModel, SoftDeleteModel
 
 User = get_user_model()
 
-class Assignment(SoftDeleteModel):
+class Assignment(BaseModel):
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
     teacher = models.ForeignKey('staffs.Teacher', on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=150)
@@ -16,7 +16,7 @@ class Assignment(SoftDeleteModel):
     
 
 #Submition of assignment by students
-class Submission(SoftDeleteModel):
+class Submission(BaseModel):
     STATUS_CHOICES = [
         ("s", "Submitted"),
         ("l", "Late"),
@@ -32,7 +32,7 @@ class Submission(SoftDeleteModel):
         return f"Submission {self.id}: Assignment {self.assignment_id} by Student {self.student_id}"
     
 #Grading of assignment by teacher
-class SubmissionGrade(SoftDeleteModel):
+class SubmissionGrade(BaseModel):
     submission = models.ForeignKey('Submission', on_delete=models.CASCADE)
     grade = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     graded_by = models.ForeignKey('staffs.Teacher', on_delete=models.DO_NOTHING, null=True, blank=True)
@@ -41,14 +41,14 @@ class SubmissionGrade(SoftDeleteModel):
     def __str__(self):
         return f"Grading {self.id}: Grade {self.grade} for Submission {self.submission_id} by Teacher {self.graded_by_id}"
 
-class QuestionCategories(SoftDeleteModel):
+class QuestionCategories(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.name}"
 
-class Exams(SoftDeleteModel):
+class Exams(BaseModel):
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -59,7 +59,7 @@ class Exams(SoftDeleteModel):
     def __str__(self):
         return f"{self.title} - (Course_ID:{self.course_id})"
 
-class ExamQuestions(SoftDeleteModel):
+class ExamQuestions(BaseModel):
     QUESTION_TYPE_CHOICES = (
         ('s', 'Single'),
         ('m', 'Multiple'),
@@ -73,7 +73,7 @@ class ExamQuestions(SoftDeleteModel):
     def __str__(self):
         return f"Question {self.id} for Exam {self.exam_id}"
     
-class QuestionOptions(SoftDeleteModel):
+class QuestionOptions(BaseModel):
     question = models.ForeignKey('ExamQuestions', on_delete=models.CASCADE, related_name='options')
     option_code = models.CharField(max_length=4)
     option_text = models.TextField()
@@ -82,7 +82,7 @@ class QuestionOptions(SoftDeleteModel):
     def __str__(self):
         return f"Option {self.option_code} for Question {self.question_id}"
 
-class ExamQuestionsMapping(SoftDeleteModel):
+class ExamQuestionsMapping(BaseModel):
     exam = models.ForeignKey('Exams', on_delete=models.CASCADE, related_name='exam_questions')
     question = models.ForeignKey('ExamQuestions', on_delete=models.CASCADE)
 
