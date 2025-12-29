@@ -1,11 +1,26 @@
 from django.db import connection
 from django.test import TestCase
-from datetime import date
-from courses.models import Course
-from utility.models import User
-from students.models import Enrollment, Student
-from students.serializer import StudentAndCourseNestedSerializer, StudentModelSerializer, StudentNestedSerializer, StudentEnrollmentModelSerializer
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase, APIClient
 from django.test.utils import CaptureQueriesContext
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import date, timedelta
+
+from students.models import Student, Enrollment
+from courses.models import Course
+from staffs.models import Teacher
+from assessments.models import Assignment, Submission, SubmissionGrade, Exams, ExamSubmissions, ExamReviews
+from students.serializer import (
+    StudentAndCourseNestedSerializer, 
+    StudentModelSerializer, 
+    StudentNestedSerializer, 
+    StudentEnrollmentModelSerializer
+)
+
+User = get_user_model()
+
 
 class ModelStudentSerializerTestCase(TestCase):
     def setUp(self):
@@ -586,3 +601,145 @@ class StudentEnrollmentModelSerializerTestCase(TestCase):
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
+
+class StudentAssessmentAPITests(APITestCase):
+
+    def setUp(self):
+        self.client = APIClient()
+
+        # 1. Setup Users
+        self.student_user = User.objects.create_user(username='api_student', password='password123')
+        self.teacher_user = User.objects.create_user(username='api_teacher', password='password123')
+
+        # 2. Setup Profiles
+        self.student = Student.objects.create(
+            user=self.student_user,
+            first_name="Test", last_name="Student",
+            date_of_birth="2000-01-01", gender="m",
+            contact_number="1234567890"
+        )
+        self.teacher = Teacher.objects.create(user=self.teacher_user)
+
+        # 3. Setup Course & Enrollment
+        self.course = Course.objects.create(title="Math 101", status="p", price=100)
+        Enrollment.objects.create(student=self.student, course=self.course)
+
+    def test_get_student_assignments_flow(self):
+        """
+        Verify:
+        1. Student sees assignments for their course.
+        2. Student sees THEIR OWN submission status.
+        3. Student sees THEIR OWN grade.
+        """
+        # A. Create Assignment
+        assignment = Assignment.objects.create(
+            course=self.course,
+            title="Algebra Homework",
+            due_date=timezone.now().date()
+        )
+
+        # B. Create Submission (Graded)
+        submission = Submission.objects.create(
+            assignment=assignment,
+            student=self.student,
+            status="g"
+        )
+
+        # C. Create Grade
+        SubmissionGrade.objects.create(
+            submission=submission,
+            grade=95.5,
+            feedback="Good job",
+            graded_by=self.teacher
+        )
+
+        # D. Call API
+        # URL structure: /students/students/{id}/assignments/
+        url = f'/students/students/{self.student.pk}/assignments/'
+        response = self.client.get(url)
+
+        # E. Assertions
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        data = response.data[0]
+        self.assertEqual(data['title'], "Algebra Homework")
+        self.assertIsNotNone(data['submission'])
+        self.assertEqual(data['submission']['status'], "g")
+        self.assertIsNotNone(data['submission']['grade'])
+        self.assertEqual(float(data['submission']['grade']['grade']), 95.5)
+
+    def test_get_student_exams_flow(self):
+        """
+        Verify:
+        1. Student sees exams.
+        2. Duration is calculated correctly.
+        3. Score (Review) is nested correctly.
+        """
+        # A. Create Exam (3 Hours long)
+        start = timezone.now()
+        end = start + timedelta(hours=3)
+        exam = Exams.objects.create(
+            course=self.course,
+            title="Final Exam",
+            start_time=start,
+            end_time=end,
+            total_marks=100
+        )
+
+        # B. Create Submission
+        sub = ExamSubmissions.objects.create(
+            exam=exam,
+            student=self.student
+        )
+
+        # C. Create Review
+        ExamReviews.objects.create(
+            exam_submission=sub,
+            score=88.0,
+            graded_by=self.teacher,
+            feedback="Well done"
+        )
+
+        # D. Call API
+        url = f'/students/students/{self.student.pk}/exams/'
+        response = self.client.get(url)
+
+        # E. Assertions
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data[0]
+        self.assertIn("3:00:00", data['duration']) 
+        self.assertIsNotNone(data['submission'])
+        self.assertIsNotNone(data['submission']['review'])
+        self.assertEqual(float(data['submission']['review']['score']), 88.0)
+
+    def test_data_privacy_between_students(self):
+        """
+        Verify that Student A cannot see Student B's submissions.
+        """
+        # 1. Create another student (Student B)
+        other_user = User.objects.create_user(username='other_student', password='pw')
+        other_student = Student.objects.create(
+            user=other_user, 
+            first_name="Other", last_name="Guy",
+            date_of_birth="2000-01-01", gender="m",
+            contact_number="0000000000"
+        )
+        
+        # 2. Enroll both in the same course
+        Enrollment.objects.create(student=other_student, course=self.course)
+
+        # 3. Create Assignment
+        assign = Assignment.objects.create(course=self.course, title="Shared HW")
+
+        # 4. Create Submission for Student A (Main Student)
+        Submission.objects.create(assignment=assign, student=self.student, status='s')
+
+        # 5. Call API as Student B (Other Student)
+        url = f'/students/students/{other_student.pk}/assignments/'
+        response = self.client.get(url)
+
+        # 6. Check Result
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data[0]
+        self.assertEqual(data['title'], "Shared HW")
+        self.assertIsNone(data['submission'])
