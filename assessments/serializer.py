@@ -1,5 +1,6 @@
 from assessments import models
 from utility.serializer import BaseSerializer
+from rest_framework import serializers
 
 class AssignmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -15,6 +16,41 @@ class SubmissionGradeSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.SubmissionGrade
         fields = '__all__'
+
+class GradeMinimalSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
+        model = models.SubmissionGrade
+        fields = ['grade', 'feedback']
+
+class SubmissionGradeMinimalSerializer(BaseSerializer):
+    grade = serializers.SerializerMethodField()
+    class Meta(BaseSerializer.Meta):
+        model = models.Submission
+        fields = ['id', 'status', 'submitted_date', 'grade']
+
+    def get_grade(self, instance):
+        grade = models.SubmissionGrade.objects.filter(submission=instance).first()
+        if grade:
+            return GradeMinimalSerializer(grade).data
+        return None
+
+class ExamReviewMinimalSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
+        model = models.ExamReviews
+        fields = ['score', 'feedback']
+
+class ExamSubmissionMinimalSerializer(BaseSerializer):
+    submitted_at = serializers.DateTimeField(source='submission_time', read_only=True)
+    review = serializers.SerializerMethodField()
+    class Meta(BaseSerializer.Meta):
+        model = models.ExamSubmissions
+        fields = ['id', 'submitted_at', 'review']
+
+    def get_review(self, instance):
+        review = models.ExamReviews.objects.filter(exam_submission=instance).first()
+        if review:
+            return ExamReviewMinimalSerializer(review).data
+        return None
 
 class QuestionCategoriesSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
