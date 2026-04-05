@@ -9,7 +9,6 @@ from .serializer import StudentSerializer
 from courses.serializer import CourseSerializer
 
 class StudentViewSet(ModelViewSet):
-    queryset = Student.objects.all()
     serializer_class = StudentSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['status','gender','date_joined']
@@ -26,3 +25,9 @@ class StudentViewSet(ModelViewSet):
         courses = student.courses.all()
         serializer = CourseSerializer(courses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def get_queryset(self):
+        queryset = Student.objects.all().select_related('user')
+        if self.request.query_params.get('courses'):
+            queryset = queryset.prefetch_related('courses')
+        return queryset
