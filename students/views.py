@@ -9,7 +9,7 @@ from assessments.models import Assignment, Exams
 from .serializer import StudentSerializer, StudentEnrollmentModelSerializer
 from assessments.serializer import AssignmentSerializer, ExamsSerializer
 from courses.serializer import CourseSerializer
-from utility.views import BaseViewPagination, EnrollmentViewPagination
+from utility.views import BaseViewPagination, EnrollmentViewPagination, StudentsAssignmentPagination, StudentsExamsPagination
 
 class StudentViewSet(ModelViewSet):
     serializer_class = StudentSerializer
@@ -51,6 +51,11 @@ class StudentViewSet(ModelViewSet):
     def assignments(self, request, pk=None):
         student = self.get_object()
         assignments = Assignment.objects.filter(course__in=student.courses.all()).select_related('course')
+        paginator = StudentsAssignmentPagination()
+        page = paginator.paginate_queryset(assignments, request)
+        if page is not None:
+            serializer = AssignmentSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
         serializer = AssignmentSerializer(assignments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -58,6 +63,11 @@ class StudentViewSet(ModelViewSet):
     def exams(self, request, pk=None):
         student = self.get_object()
         exams = Exams.objects.filter(course__in=student.courses.all()).select_related('course')
+        paginator = StudentsExamsPagination()
+        page = paginator.paginate_queryset(exams, request)
+        if page is not None:
+            serializer = ExamsSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
         serializer = ExamsSerializer(exams, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     

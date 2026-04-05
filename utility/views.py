@@ -7,3 +7,9 @@ class BaseViewPagination(PageNumberPagination):
 class EnrollmentViewPagination(BaseViewPagination):
     page_size = 50
     max_page_size = 100
+
+class StudentsAssignmentPagination(BaseViewPagination):
+    page_size = 15
+
+class StudentsExamsPagination(BaseViewPagination):
+    page_size = 10
