@@ -5,9 +5,9 @@ from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Student, Enrollment
-from assessments.models import Assignment
+from assessments.models import Assignment, Exams
 from .serializer import StudentSerializer, StudentEnrollmentModelSerializer
-from assessments.serializer import AssignmentSerializer
+from assessments.serializer import AssignmentSerializer, ExamsSerializer
 from courses.serializer import CourseSerializer
 from utility.views import BaseViewPagination, EnrollmentViewPagination
 
@@ -52,6 +52,13 @@ class StudentViewSet(ModelViewSet):
         student = self.get_object()
         assignments = Assignment.objects.filter(course__in=student.courses.all()).select_related('course')
         serializer = AssignmentSerializer(assignments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['GET'], url_path='exams')
+    def exams(self, request, pk=None):
+        student = self.get_object()
+        exams = Exams.objects.filter(course__in=student.courses.all()).select_related('course')
+        serializer = ExamsSerializer(exams, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class StudentEnrollmentViewSet(ModelViewSet):
