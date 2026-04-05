@@ -8,17 +8,21 @@ from utility.serializer import BaseSerializer
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username']
+        fields = ['id', 'username','password']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
 class StudentSerializer(BaseSerializer):
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    user = UserSerializer()
     age = serializers.SerializerMethodField()
     class Meta(BaseSerializer.Meta):
         model = models.Student
         fields = '__all__'
 
     def create(self, validated_data):
-        student = models.Student.objects.create(**validated_data)
+        user = User.objects.create_user(**validated_data.pop('user'))
+        student = models.Student.objects.create(**validated_data, user=user)
         return student
     def __init__(self, *args, **kwargs):
         allowed_list = kwargs.pop('fields', None)
