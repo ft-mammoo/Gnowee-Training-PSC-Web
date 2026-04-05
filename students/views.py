@@ -34,6 +34,17 @@ class StudentViewSet(ModelViewSet):
             queryset = queryset.prefetch_related('courses')
         return queryset
     
+    @action(detail=False, methods=['GET'], url_path='with-courses')
+    def with_courses(self, request):
+        queryset = self.get_queryset().prefetch_related('courses')
+        page = self.paginate_queryset(queryset)
+        minimal_fields = ['id', 'first_name', 'last_name', 'courses']
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, fields=minimal_fields)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True, fields=minimal_fields)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
 class StudentEnrollmentViewSet(ModelViewSet):
     serializer_class = StudentEnrollmentModelSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
