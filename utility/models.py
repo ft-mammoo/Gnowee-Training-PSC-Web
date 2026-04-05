@@ -19,7 +19,7 @@ class BaseModel(models.Model):
 
 class SoftDeleteModelManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().filter(status="a")
+        return super().get_queryset().exclude(status="i")
 
 class SoftDeleteModel(BaseModel):
 
