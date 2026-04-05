@@ -5,7 +5,9 @@ from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Student, Enrollment
+from assessments.models import Assignment
 from .serializer import StudentSerializer, StudentEnrollmentModelSerializer
+from assessments.serializer import AssignmentSerializer
 from courses.serializer import CourseSerializer
 from utility.views import BaseViewPagination, EnrollmentViewPagination
 
@@ -43,6 +45,13 @@ class StudentViewSet(ModelViewSet):
             serializer = self.get_serializer(page, many=True, fields=minimal_fields)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True, fields=minimal_fields)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['GET'], url_path='assignments')
+    def assignments(self, request, pk=None):
+        student = self.get_object()
+        assignments = Assignment.objects.filter(course__in=student.courses.all()).select_related('course')
+        serializer = AssignmentSerializer(assignments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class StudentEnrollmentViewSet(ModelViewSet):
