@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.filters import SearchFilter, OrderingFilter
-from .models import Student
+from .models import Student, Enrollment
 from .serializer import StudentSerializer, StudentEnrollmentModelSerializer
 from courses.serializer import CourseSerializer
 from utility.views import BaseViewPagination, EnrollmentViewPagination
@@ -46,6 +46,7 @@ class StudentViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class StudentEnrollmentViewSet(ModelViewSet):
+    queryset = Enrollment.objects.select_related('student', 'course').all()
     serializer_class = StudentEnrollmentModelSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['student', 'course', 'status', 'enrollment_date']
