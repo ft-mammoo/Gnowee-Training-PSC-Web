@@ -134,8 +134,10 @@ class StudentSerializerTestCase(TestCase):
         )
 
         qs = Student.objects.all()
-        se = StudentSerializer(qs, many=True)
-        print(se.data)
+        with CaptureQueriesContext(connection=connection) as ctx:
+            se = StudentSerializer(qs, many=True)
+            print (se.data)
+        print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
 
