@@ -7,6 +7,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Student
 from .serializer import StudentSerializer
 from courses.serializer import CourseSerializer
+from utility.views import BaseViewPagination
 
 class StudentViewSet(ModelViewSet):
     serializer_class = StudentSerializer
@@ -14,6 +15,7 @@ class StudentViewSet(ModelViewSet):
     filterset_fields = ['status','gender','date_joined']
     search_fields = ['first_name', 'last_name', 'contact_number']
     ordering_fields = ['first_name', 'last_name', 'date_joined']
+    pagination_class = BaseViewPagination
 
     def perform_destroy(self, instance):
         instance.status = 'i'
