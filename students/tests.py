@@ -334,3 +334,36 @@ class StudentEnrollmentModelSerializerTestCase(TestCase):
         print(ctx.captured_queries)
         self.assertEqual(len(se.data), 5)
 
+class StudentUserPaswordTestCase(TestCase):
+    def test_serializer_create_with_nested_user(self):
+        # Construct data with ALL mandatory model fields + nested user
+        data = {
+            'user': {
+                'username': 'new_historical_student',
+                'password': 'securepassword123'
+            },
+            'first_name': 'Al-Biruni',
+            'last_name': 'Polymath',
+            'date_of_birth': '0973-09-04',
+            'gender': 'm',
+            'contact_number': '1234567890',
+            'emergency_contact_name': 'Guardian',
+            'emergency_contact_number': '0987654321',
+            'status': 'a',
+            'date_joined': date.today().isoformat()
+        }
+        # Initialize serializer
+        se = StudentSerializer(data=data)
+        # Verification 1: Logic Validation
+        self.assertTrue(se.is_valid(), se.errors)
+        student = se.save()
+        # Verification 2: Security Hashing (The shredder test)
+        user = student.user
+        self.assertTrue(user.check_password('securepassword123'))
+        # Verification 3: Leakage Protection (The write-only test)
+        self.assertNotIn('password', se.data['user'])
+        self.assertEqual(se.data['user']['username'], 'new_historical_student')
+        # Verification 4: Data Integrity
+        self.assertEqual(student.first_name, 'Al-Biruni')
+        self.assertEqual(student.status, 'a')
+        print("All assertions passed for StudentUserPasswordTestCase")
