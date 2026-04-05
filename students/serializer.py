@@ -1,4 +1,5 @@
 from datetime import date
+from django.db import transaction
 from rest_framework import serializers
 from courses.serializer import CourseSerializer
 from utility.models import User
@@ -20,10 +21,24 @@ class StudentSerializer(BaseSerializer):
         model = models.Student
         fields = '__all__'
 
+    @transaction.atomic
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data.pop('user'))
+        user_data = validated_data.pop('user')
+        user = User.objects.create_user(**user_data)
         student = models.Student.objects.create(**validated_data, user=user)
         return student
+    
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', None)
+        if user_data:
+            user = instance.user
+            user.username = user_data.get('username', user.username)
+            if 'password' in user_data:
+                user.set_password(user_data['password'])
+            user.save()
+        return super().update(instance, validated_data)
+
     def __init__(self, *args, **kwargs):
         allowed_list = kwargs.pop('fields', None)
         super().__init__(*args, **kwargs)
