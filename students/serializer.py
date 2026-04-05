@@ -28,13 +28,13 @@ class StudentSerializer(BaseSerializer):
         allowed_list = kwargs.pop('fields', None)
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
-        if request is not None:
-            if request.query_params.get('courses'):
-                self.fields['courses'] = CourseSerializer(many=True, read_only=True)
-                if allowed_list is not None:
-                    allowed_list.append('courses')
-            else:
-                self.fields.pop('courses', None)
+        include_courses = (allowed_list and 'courses' in allowed_list) or (request and request.query_params.get('courses'))
+
+        if include_courses:
+            self.fields['courses'] = CourseSerializer(many=True, read_only=True)
+        else:
+            self.fields.pop('courses', None)
+
         if allowed_list is not None:
             allowed = set(allowed_list)
             existing = set(self.fields.keys())
