@@ -7,7 +7,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Student
 from .serializer import StudentSerializer, StudentEnrollmentModelSerializer
 from courses.serializer import CourseSerializer
-from utility.views import BaseViewPagination
+from utility.views import BaseViewPagination, EnrollmentViewPagination
 
 class StudentViewSet(ModelViewSet):
     serializer_class = StudentSerializer
@@ -50,6 +50,7 @@ class StudentEnrollmentViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['student', 'course', 'status', 'enrollment_date']
     search_fields = ['student__first_name', 'student__last_name', 'course__title']
+    pagination_class = EnrollmentViewPagination
     
     def perform_destroy(self, instance):
         instance.status = 'i'
