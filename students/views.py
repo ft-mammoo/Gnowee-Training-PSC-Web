@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Student
-from .serializer import StudentSerializer
+from .serializer import StudentSerializer, StudentEnrollmentModelSerializer
 from courses.serializer import CourseSerializer
 from utility.views import BaseViewPagination
 
@@ -33,3 +33,13 @@ class StudentViewSet(ModelViewSet):
         if self.request.query_params.get('courses'):
             queryset = queryset.prefetch_related('courses')
         return queryset
+    
+class StudentEnrollmentViewSet(ModelViewSet):
+    serializer_class = StudentEnrollmentModelSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['student', 'course', 'status', 'enrollment_date']
+    search_fields = ['student__first_name', 'student__last_name', 'course__title']
+    
+    def perform_destroy(self, instance):
+        instance.status = 'i'
+        instance.save()
