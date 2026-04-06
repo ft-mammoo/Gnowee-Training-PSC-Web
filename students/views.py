@@ -17,6 +17,7 @@ class StudentViewSet(ModelViewSet):
     filterset_fields = ['status','gender','date_joined']
     search_fields = ['first_name', 'last_name', 'contact_number']
     ordering_fields = ['first_name', 'last_name', 'date_joined']
+    ordering = ['-date_joined']
     pagination_class = BaseViewPagination
 
     def perform_destroy(self, instance):
