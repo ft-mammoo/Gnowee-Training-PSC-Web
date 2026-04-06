@@ -6,6 +6,11 @@ class CourseSerializer(BaseSerializer):
         model = models.Course
         fields = "__all__"
 
+class CourseMinimalSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
+        model = models.Course
+        fields = ['id', 'title']
+
 class CourseTeacherSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.CourseTeachers
