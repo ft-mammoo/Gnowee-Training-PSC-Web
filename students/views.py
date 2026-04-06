@@ -78,6 +78,8 @@ class StudentEnrollmentViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['student', 'course', 'status', 'enrollment_date']
     search_fields = ['student__first_name', 'student__last_name', 'course__title']
+    ordering_fields = ['enrollment_date', 'status']
+    ordering = ['-enrollment_date']
     pagination_class = EnrollmentViewPagination
     
     def perform_destroy(self, instance):
