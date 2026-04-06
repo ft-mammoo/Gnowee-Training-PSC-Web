@@ -30,11 +30,13 @@ class SoftDeleteModel(BaseModel):
     class Meta:
         abstract = True
 
-    def delete(self, using = None, keep_parents = False):
+    def delete(self, using=None, keep_parents=False):
         self.status = "i"
-        self.save()
+        # Optimization: Only update the status field to reduce database overhead
+        self.save(update_fields=['status'])
         soft_deleted.send(sender=self.__class__, instance=self)
 
     def activate(self):
-        self.status = "i"
-        self.save()
+        self.status = "a"
+        # Optimization: Only update the status field to prevent accidental overwrites
+        self.save(update_fields=['status'])
