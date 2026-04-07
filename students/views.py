@@ -51,7 +51,7 @@ class StudentViewSet(ModelViewSet):
     @action(detail=True, methods=['GET'], url_path='assignments')
     def assignments(self, request, pk=None):
         student = self.get_object()
-        assignments = Assignment.objects.filter(course__in=student.courses.all()).select_related('course')
+        assignments = Assignment.objects.filter(course__in=student.courses.all()).select_related('course').order_by('id')
         paginator = StudentsAssignmentPagination()
         page = paginator.paginate_queryset(assignments, request)
         if page is not None:
@@ -63,7 +63,7 @@ class StudentViewSet(ModelViewSet):
     @action(detail=True, methods=['GET'], url_path='exams')
     def exams(self, request, pk=None):
         student = self.get_object()
-        exams = Exams.objects.filter(course__in=student.courses.all()).select_related('course')
+        exams = Exams.objects.filter(course__in=student.courses.all()).select_related('course').order_by('id')
         paginator = StudentsExamsPagination()
         page = paginator.paginate_queryset(exams, request)
         if page is not None:
