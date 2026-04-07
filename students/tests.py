@@ -134,11 +134,19 @@ class StudentModuleTests(APITestCase):
 
     def test_query_count_prevention(self):
         """Confirm select_related('user') avoids N+1 database hits."""
+        # Create additional records to amplify potential N+1 issues
         for i in range(2):
             u = User.objects.create_user(username=f'node_{i}', password='p')
             Student.objects.create(
-                user=u, first_name='F', last_name='L', gender='o', 
-                contact_number='0', date_of_birth=date(2000,1,1), date_joined=date.today()
+                user=u, 
+                first_name='F', 
+                last_name='L', 
+                gender='o', 
+                contact_number='0000000000', 
+                date_of_birth=date(2000, 1, 1), 
+                date_joined=date.today(),
+                emergency_contact_name='Primary Guardian',
+                emergency_contact_number='9988776655'
             )
 
         url = reverse('student-list')
@@ -153,7 +161,7 @@ class StudentModuleTests(APITestCase):
     def test_enrollment_status_patch(self):
         """Verify updating enrollment to a valid code (e.g., 'c' for Completed)."""
         url = reverse('enrollment-detail', args=[self.enrollment.id])
-        payload = {"status": "c"} # FIXED: 'c' is valid for Enrollment, 's' was not.
+        payload = {"status": "c"} # FIXED: 'c' is valid for Enrollment
         response = self.client.patch(url, payload)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
