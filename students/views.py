@@ -21,8 +21,7 @@ class StudentViewSet(ModelViewSet):
     pagination_class = BaseViewPagination
 
     def perform_destroy(self, instance):
-        instance.status = 'i'
-        instance.save()
+        instance.delete()
     
     @action(detail=True, methods=['GET'])
     def courses(self, request, pk=None):
@@ -83,5 +82,4 @@ class StudentEnrollmentViewSet(ModelViewSet):
     pagination_class = EnrollmentViewPagination
     
     def perform_destroy(self, instance):
-        instance.status = 'i'
-        instance.save()
+        instance.delete()
