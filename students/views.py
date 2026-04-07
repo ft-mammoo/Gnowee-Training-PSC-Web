@@ -32,6 +32,8 @@ class StudentViewSet(ModelViewSet):
     
     def get_queryset(self):
         queryset = Student.objects.all().select_related('user')
+        if not self.request.query_params.get('status'):
+            queryset = queryset.filter(status='a')
         if self.request.query_params.get('courses'):
             queryset = queryset.prefetch_related('courses')
         return queryset
