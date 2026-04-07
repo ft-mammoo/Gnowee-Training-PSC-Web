@@ -31,7 +31,7 @@ class StudentViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def get_queryset(self):
-        queryset = Student.objects.all().select_related('user')
+        queryset = Student.objects.all().select_related('user').order_by('-date_joined')
         if not self.request.query_params.get('status'):
             queryset = queryset.filter(status='a')
         if self.request.query_params.get('courses'):
