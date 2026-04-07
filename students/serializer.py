@@ -43,6 +43,10 @@ class StudentSerializer(BaseSerializer):
         allowed_list = kwargs.pop('fields', None)
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
+        
+        if self.instance:
+            self.fields['user'].required = False
+
         include_courses = (allowed_list and 'courses' in allowed_list) or (request and request.query_params.get('courses'))
 
         if include_courses:
