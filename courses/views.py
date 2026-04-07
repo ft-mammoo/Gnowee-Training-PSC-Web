@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from courses import models, serializer
 from students.models import Student
-from students.serializer import StudentModelSerializer
+from students.serializer import StudentSerializer
 from utility.views import BaseViewPagination
 
 # Function-based views for Course model
@@ -66,7 +66,7 @@ def course_detail_view(req, pk):
 def course_actions_view(req, pk, action):
     if action == "students":
         qs = Student.objects.filter(courses__id=pk)
-        se = StudentModelSerializer(qs, many=True)
+        se = StudentSerializer(qs, many=True)
         return Response(data=se.data, status=status.HTTP_200_OK)
 
 # Class-based views for Course model
@@ -126,7 +126,7 @@ class CourseActionsView(APIView):
     def get(self, req, pk, action):
         if action == "students":
             qs = Student.objects.filter(courses__id=pk)
-            se = StudentModelSerializer(qs, many=True)
+            se = StudentSerializer(qs, many=True)
             return Response(data=se.data, status=status.HTTP_200_OK)
 class CourseGenericView(ListCreateAPIView):
     queryset = models.Course.objects.all()
@@ -148,7 +148,7 @@ class CourseViewSet(ModelViewSet):
     @action(methods=["GET"], detail=True)
     def students(self, req, pk):
         qs = Student.objects.filter(enrollments__course__id=pk)
-        se = StudentModelSerializer(qs, many=True)
+        se = StudentSerializer(qs, many=True)
         return Response(data=se.data, status=status.HTTP_200_OK)
 class CourseMixinViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin, GenericViewSet):
     queryset = models.Course.objects.all()
@@ -156,6 +156,6 @@ class CourseMixinViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, U
     @action(methods=["GET"], detail=True)
     def students(self, req, pk):
         qs = Student.objects.filter(enrollments__course__id=pk)
-        se = StudentModelSerializer(qs, many=True)
+        se = StudentSerializer(qs, many=True)
         return Response(data=se.data, status=status.HTTP_200_OK)
 

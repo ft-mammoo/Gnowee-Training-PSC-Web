@@ -1,717 +1,161 @@
+from datetime import date, timedelta
+from django.urls import reverse
+from django.contrib.auth import get_user_model
 from django.db import connection
-from django.test import TestCase
-from datetime import date
-from courses.models import Course
-from utility.models import User
-from students.models import Enrollment, Student
-from students.serializer import StudentAndCourseNestedSerializer, StudentSerializer, StudentModelSerializer, StudentNestedSerializer, StudentEnrollmentModelSerializer
 from django.test.utils import CaptureQueriesContext
-class StudentSerializerTestCase(TestCase):
+from django.utils import timezone 
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from students.models import Student, Enrollment
+from courses.models import Course
+from assessments.models import Assignment, Exams
+
+User = get_user_model()
+
+class StudentModuleTests(APITestCase):
+    """
+    Finalized test suite for the Students Module.
+    Verifies API stability, model constraints, and performance targets.
+    """
+
     def setUp(self):
-        student_user = User.objects.create(
-            username='student1', 
-            password='password'
+        # Admin authentication
+        self.staff_user = User.objects.create_user(
+            username='system_manager', 
+            password='secure_admin_pass'
         )
-        self.student_1 = Student.objects.create(
-            user=student_user,
-            first_name='John',
-            last_name='Doe',
-            date_of_birth=date(2000, 1, 1),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-    
-    def test_serializer(self):
-        se = StudentSerializer(self.student_1)
-        #print(se.data)
-        self.assertEqual(se.data['first_name'], 'John')
+        self.client.force_authenticate(user=self.staff_user)
 
-    def test_serializer_create(self):
-        student_user = User.objects.create_user(
-            username='john', 
-            password='password'
-        )
-        data = {
-            'user': student_user.id,
-            'first_name': 'Alice',
-            'last_name': 'Smith',
-            'date_of_birth': '1999-05-15',
-            'gender': 'f',
-            'contact_number': '9876543210',
-            'emergency_contact_name': 'Bob Smith',
-            'emergency_contact_number': '1234567890',
-            'status': 'a',
-            'date_joined': '2022-01-01',
-        }
-        se = StudentSerializer(data=data)
-        print(se.is_valid())
-        print(se.errors)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.assertEqual(Student.objects.count(), 2)
-    
-    def test_serializer_update(self):
-        change = {
-            'first_name': 'Johnny',
-        }
-        se = StudentSerializer(self.student_1, data=change, partial=True)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.student_1.refresh_from_db()
-        self.assertEqual(self.student_1.first_name, 'Johnny')
+        # Core project data
+        self.math_course = Course.objects.create(title="Advanced Calculus", status="p")
+        self.physics_course = Course.objects.create(title="Quantum Mechanics", status="p")
 
-    def test_listing(self):
-        u2 = User.objects.create_user(
-            username='student2', 
-            password='password'
-        )
-        u3 = User.objects.create_user(
-            username='student3', 
-            password='password'
-        )
-        u4 = User.objects.create_user(    
-            username='student4',
-            password='password'
-        )
-        u5 = User.objects.create_user(    
-            username='student5',
-            password='password'
-        )
-
-        s2 = Student.objects.create(
-            user=u2,
-            first_name='Emily',
-            last_name='Clark',
-            date_of_birth=date(2001, 2, 2),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s3 = Student.objects.create(
-            user=u3,
+        # Standard student record
+        self.profile_user = User.objects.create_user(username='m_smith', password='student_pass_123')
+        self.student = Student.objects.create(
+            user=self.profile_user,
             first_name='Michael',
-            last_name='Brown',
-            date_of_birth=date(2002, 3, 3),
+            last_name='Smith',
             gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s4 = Student.objects.create(
-            user=u4,
-            first_name='Sarah',
-            last_name='Davis',
-            date_of_birth=date(2003, 4, 4),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s5 = Student.objects.create(
-            user=u5,
-            first_name='David',
-            last_name='Wilson',
-            date_of_birth=date(2004, 5, 5), 
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
+            date_of_birth=date(2003, 8, 12),
+            contact_number='9876543210',
+            emergency_contact_name='Sarah Smith',
+            emergency_contact_number='9876543211',
+            status='a',
+            date_joined=date.today()
         )
 
-        qs = Student.objects.all()
-        se = StudentSerializer(qs, many=True)
-        print(se.data)
-        self.assertEqual(len(se.data), 5)
-
-class ModelStudentSerializerTestCase(TestCase):
-    def setUp(self):
-        student_user = User.objects.create(
-            username='student1', 
-            password='password'
-        )
-        self.student_1 = Student.objects.create(
-            user=student_user,
-            first_name='John',
-            last_name='Doe',
-            date_of_birth=date(2000, 1, 1),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-    
-    def test_serializer(self):
-        se = StudentModelSerializer(self.student_1)
-        #print(se.data)
-        self.assertEqual(se.data['first_name'], 'John')
-
-    def test_serializer_create(self):
-        student_user = User.objects.create_user(
-            username='john', 
-            password='password'
-        )
-        data = {
-            'user': student_user.id,
-            'first_name': 'Alice',
-            'last_name': 'Smith',
-            'date_of_birth': '1999-05-15',
-            'gender': 'f',
-            'contact_number': '9876543210',
-            'emergency_contact_name': 'Bob Smith',
-            'emergency_contact_number': '1234567890',
-            'status': 'a',
-            'date_joined': '2022-01-01',
-        }
-        se = StudentModelSerializer(data=data)
-        print(se.is_valid())
-        print(se.errors)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.assertEqual(Student.objects.count(), 2)
-    
-    def test_serializer_update(self):
-        change = {
-            'first_name': 'Johnny',
-        }
-        se = StudentModelSerializer(self.student_1, data=change, partial=True)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.student_1.refresh_from_db()
-        self.assertEqual(self.student_1.first_name, 'Johnny')
-
-    def test_listing(self):
-        u2 = User.objects.create_user(
-            username='student2', 
-            password='password'
-        )
-        u3 = User.objects.create_user(
-            username='student3', 
-            password='password'
-        )
-        u4 = User.objects.create_user(    
-            username='student4',
-            password='password'
-        )
-        u5 = User.objects.create_user(    
-            username='student5',
-            password='password'
-        )
-
-        s2 = Student.objects.create(
-            user=u2,
-            first_name='Emily',
-            last_name='Clark',
-            date_of_birth=date(2001, 2, 2),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s3 = Student.objects.create(
-            user=u3,
-            first_name='Michael',
-            last_name='Brown',
-            date_of_birth=date(2002, 3, 3),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s4 = Student.objects.create(
-            user=u4,
-            first_name='Sarah',
-            last_name='Davis',
-            date_of_birth=date(2003, 4, 4),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s5 = Student.objects.create(
-            user=u5,
-            first_name='David',
-            last_name='Wilson',
-            date_of_birth=date(2004, 5, 5), 
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-
-        qs = Student.objects.all()
-        se = StudentModelSerializer(qs, many=True)
-        print(se.data)
-        self.assertEqual(len(se.data), 5)
-
-class NestedSerializerTest(TestCase):
-    def setUp(self):
-        student_user = User.objects.create(
-            username='John', 
-            password='password'
-        )
-        self.student_1 = Student.objects.create(
-            user=student_user,
-            first_name='John',
-            last_name='Doe',
-            date_of_birth=date(2000, 1, 1),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-    
-    def test_serializer(self):
-        se = StudentNestedSerializer(self.student_1)
-        print(se.data)
-        self.assertEqual(se.data['first_name'], 'John')
-
-    def test_serializer_create(self):
-        data = {
-            'user': {'username': 'Alice'},
-            'first_name': 'Alice',
-            'last_name': 'Smith',
-            'date_of_birth': '1999-05-15',
-            'gender': 'f',
-            'contact_number': '9876543210',
-            'emergency_contact_name': 'Bob Smith',
-            'emergency_contact_number': '1234567890',
-            'status': 'a',
-            'date_joined': '2022-01-01',
-        }
-        se = StudentNestedSerializer(data=data)
-        print(se.is_valid())
-        print(se.errors)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.assertEqual(Student.objects.count(), 2)
-    
-    def test_serializer_update(self):
-        change = {
-            'first_name': 'Johnny',
-        }
-        se = StudentNestedSerializer(self.student_1, data=change, partial=True)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.student_1.refresh_from_db()
-        self.assertEqual(self.student_1.first_name, 'Johnny')
-
-    def test_listing(self):
-        u2 = User.objects.create_user(
-            username='student2', 
-            password='password'
-        )
-        u3 = User.objects.create_user(
-            username='student3', 
-            password='password'
-        )
-        u4 = User.objects.create_user(    
-            username='student4',
-            password='password'
-        )
-        u5 = User.objects.create_user(    
-            username='student5',
-            password='password'
-        )
-
-        s2 = Student.objects.create(
-            user=u2,
-            first_name='Emily',
-            last_name='Clark',
-            date_of_birth=date(2001, 2, 2),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s3 = Student.objects.create(
-            user=u3,
-            first_name='Michael',
-            last_name='Brown',
-            date_of_birth=date(2002, 3, 3),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s4 = Student.objects.create(
-            user=u4,
-            first_name='Sarah',
-            last_name='Davis',
-            date_of_birth=date(2003, 4, 4),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s5 = Student.objects.create(
-            user=u5,
-            first_name='David',
-            last_name='Wilson',
-            date_of_birth=date(2004, 5, 5), 
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-
-        qs = Student.objects.all().select_related('user')
-        with CaptureQueriesContext(connection=connection) as ctx:
-            se = StudentNestedSerializer(qs, many=True)
-            print(se.data)
-        print(ctx.captured_queries)
-        self.assertEqual(len(se.data), 5)
-
-class StudentAndCourseNestedSerializerTestCase(TestCase):
-    def setUp(self):
-        student_user = User.objects.create(
-            username='John', 
-            password='password'
-        )
-        self.student_1 = Student.objects.create(
-            user=student_user,
-            first_name='John',
-            last_name='Doe',
-            date_of_birth=date(2000, 1, 1),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-    
-    def test_serializer(self):
-        se = StudentAndCourseNestedSerializer(self.student_1)
-        print(se.data)
-        self.assertEqual(se.data['first_name'], 'John')
-
-    def test_serializer_create(self):
-        data = {
-            'user': {'username': 'Alice'},
-            'first_name': 'Alice',
-            'last_name': 'Smith',
-            'date_of_birth': '1999-05-15',
-            'gender': 'f',
-            'contact_number': '9876543210',
-            'emergency_contact_name': 'Bob Smith',
-            'emergency_contact_number': '1234567890',
-            'status': 'a',
-            'date_joined': '2022-01-01',
-        }
-        se = StudentAndCourseNestedSerializer(data=data)
-        print(se.is_valid())
-        print(se.errors)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.assertEqual(Student.objects.count(), 2)
-    
-    def test_serializer_update(self):
-        change = {
-            'first_name': 'Johnny',
-        }
-        se = StudentAndCourseNestedSerializer(self.student_1, data=change, partial=True)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.student_1.refresh_from_db()
-        self.assertEqual(self.student_1.first_name, 'Johnny')
-
-    def test_listing(self):
-        u2 = User.objects.create_user(
-            username='student2', 
-            password='password'
-        )
-        u3 = User.objects.create_user(
-            username='student3', 
-            password='password'
-        )
-        u4 = User.objects.create_user(    
-            username='student4',
-            password='password'
-        )
-        u5 = User.objects.create_user(    
-            username='student5',
-            password='password'
-        )
-
-        s2 = Student.objects.create(
-            user=u2,
-            first_name='Emily',
-            last_name='Clark',
-            date_of_birth=date(2001, 2, 2),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s3 = Student.objects.create(
-            user=u3,
-            first_name='Michael',
-            last_name='Brown',
-            date_of_birth=date(2002, 3, 3),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s4 = Student.objects.create(
-            user=u4,
-            first_name='Sarah',
-            last_name='Davis',
-            date_of_birth=date(2003, 4, 4),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s5 = Student.objects.create(
-            user=u5,
-            first_name='David',
-            last_name='Wilson',
-            date_of_birth=date(2004, 5, 5), 
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-
-        qs = Student.objects.all().select_related('user').prefetch_related('courses')
-        with CaptureQueriesContext(connection=connection) as ctx:
-            se = StudentAndCourseNestedSerializer(qs, many=True)
-            print(se.data)
-        print(ctx.captured_queries)
-        self.assertEqual(len(se.data), 5)
-
-class StudentEnrollmentModelSerializerTestCase(TestCase):
-    def setUp(self):
-        u1 = User.objects.create_user(
-            username='student1',
-            password='password'
-        )
-        self.s1 = Student.objects.create(
-            user=u1,
-            first_name='John',
-            last_name='Doe',
-            date_of_birth=date(2000, 1, 1),
-            gender='m',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        self.c1 = Course.objects.create(
-            title='Math 101',
-            description='Basic Mathematics',
-            status='p'
-        )
-        self.e1 = Enrollment.objects.create(
-            student=self.s1,
-            course=self.c1,
+        # Enrollment and related assessment data
+        self.enrollment = Enrollment.objects.create(
+            student=self.student, 
+            course=self.math_course, 
             status='a'
         )
         
-    def test_serializer(self):
-        se = StudentEnrollmentModelSerializer(self.e1)
-        print(se.data)
-        self.assertEqual(se.data['student'], self.s1.id)
-        self.assertEqual(se.data['course'], self.c1.id)
-
-    def test_serializer_create(self):
-        u2 = User.objects.create_user(
-            username='student2',
-            password='password'
-        )
-        s2 = Student.objects.create(
-            user=u2,
-            first_name='Emily',
-            last_name='Clark',
-            date_of_birth=date(2001, 2, 2),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
+        self.assignment = Assignment.objects.create(
+            title="Calculus Problem Set 1",
+            course=self.math_course,
+            description="Initial set for integration modules."
         )
         
-        c2 = Course.objects.create(
-            title='Art 101',
-            description='Basic Art',
-            status='a'
+        now = timezone.now()
+        self.midterm_exam = Exams.objects.create(
+            title="Physics Midterm",
+            course=self.physics_course,
+            total_marks=50,
+            start_time=now,
+            end_time=now + timedelta(hours=3)
         )
-        data = {
-            'student': s2.id,
-            'course': c2.id,
-            'status': 'a'
+
+    # --- 1.1 Student Management ---
+
+    def test_list_students_functional(self):
+        url = reverse('student-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+
+    def test_create_student_transaction_integrity(self):
+        url = reverse('student-list')
+        payload = {
+            "user": {"username": "j_doe_new", "password": "new_secure_pass"},
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "gender": "f",
+            "contact_number": "1122334455",
+            "date_of_birth": "2005-01-01",
+            "date_joined": str(date.today()),
+            "emergency_contact_name": "Richard Doe",
+            "emergency_contact_number": "5544332211"
         }
+        response = self.client.post(url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         
-        se = StudentEnrollmentModelSerializer(data=data)
-        print(se.is_valid())
-        print(se.errors)
-        self.assertTrue(se.is_valid(), se.errors)
-        se.save()
-        self.assertEqual(Enrollment.objects.count(), 2)
+        created_user = User.objects.get(username="j_doe_new")
+        self.assertTrue(created_user.check_password("new_secure_pass"))
 
-    def test_serializer_update(self):
-        change = {
-            'status': 'c',
-        }
-        se = StudentEnrollmentModelSerializer(self.e1, data=change, partial=True)
-        self.assertTrue(se.is_valid())
-        se.save()
-        self.e1.refresh_from_db()
-        self.assertEqual(self.e1.status, 'c')
+    def test_student_soft_delete(self):
+        url = reverse('student-detail', args=[self.student.id])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.status, 'i')
 
-    def test_listing(self):
-        u2 = User.objects.create_user(
-            username='student2',
-            password='password'
-        )
-        u3 = User.objects.create_user(
-            username='student3',
-            password='password'
-        )
-        u4 = User.objects.create_user(    
-            username='student4',
-            password='password'
-        )
-        u5 = User.objects.create_user(    
-            username='student5',
-            password='password'
-        )
-        s2 = Student.objects.create(
-            user=u2,
-            first_name='Emily',
-            last_name='Clark',
-            date_of_birth=date(2001, 2, 2),
-            gender='f',
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s3 = Student.objects.create(
-            user=u3,
-            first_name='Michael',
-            last_name='Brown',
-            date_of_birth=date(2002, 3, 3),
-            gender='m', 
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s4 = Student.objects.create(
-            user=u4,
-            first_name='Sarah',
-            last_name='Davis',
-            date_of_birth=date(2003, 4, 4),
-            gender='f', 
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        s5 = Student.objects.create(
-            user=u5,
-            first_name='David',
-            last_name='Wilson',
-            date_of_birth=date(2004, 5, 5),
-            gender='m', 
-            contact_number='1234567890',
-            emergency_contact_name='Jane Doe',  
-            emergency_contact_number='9876543210',
-            status='a', 
-            date_joined=date.today(),
-        )
-        c2 = Course.objects.create(
-            title='Art 101',
-            description='Basic Art',
-            status='a'
-        )
-        c3 = Course.objects.create(
-            title='Science 101',
-            description='Basic Science',
-            status='p'
-        )
-        c4 = Course.objects.create(
-            title='History 101',
-            description='Basic History',
-            status='p'
-        )
-        c5 = Course.objects.create(
-            title='Geography 101',  
-            description='Basic Geography',
-            status='p'
-        )
-        e2 = Enrollment.objects.create(
-            student=s2,
-            course=c2,
-            status='a'
-        )
-        e3 = Enrollment.objects.create(
-            student=s3,
-            course=c3,
-            status='a'
-        )
-        e4 = Enrollment.objects.create(
-            student=s4,
-            course=c4,
-            status='a'
-        )
-        e5 = Enrollment.objects.create(
-            student=s5,
-            course=c5,
-            status='a'
-        )
-        qs = Student.objects.all()
-        with CaptureQueriesContext(connection=connection) as ctx:
-            se = StudentModelSerializer(qs, many=True)
-            print (se.data)
-        print(ctx.captured_queries)
-        self.assertEqual(len(se.data), 5)
+    # --- 1.2 Nested Endpoints ---
 
+    def test_with_courses_output_optimization(self):
+        url = reverse('student-with-courses')
+        response = self.client.get(url)
+        
+        student_entry = response.data['results'][0]
+        self.assertIn('courses', student_entry)
+        
+        course_data = student_entry['courses'][0]
+        self.assertIn('id', course_data)
+        self.assertIn('title', course_data)
+        self.assertNotIn('description', course_data)
+
+    def test_student_assignments_filtering(self):
+        url = reverse('student-assignments', args=[self.student.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['results'][0]['title'], "Calculus Problem Set 1")
+
+    def test_query_count_prevention(self):
+        """Confirm select_related('user') avoids N+1 database hits."""
+        for i in range(2):
+            u = User.objects.create_user(username=f'node_{i}', password='p')
+            Student.objects.create(
+                user=u, 
+                first_name='F', 
+                last_name='L', 
+                gender='o', 
+                contact_number='0000000000', 
+                date_of_birth=date(2000, 1, 1), 
+                date_joined=date.today(), 
+                emergency_contact_name='G', 
+                emergency_contact_number='0'
+            )
+
+        url = reverse('student-list')
+        with CaptureQueriesContext(connection) as ctx:
+            self.client.get(url)
+        self.assertLessEqual(len(ctx.captured_queries), 8)
+
+    # --- 1.3 Enrollment Management ---
+
+    def test_enrollment_status_patch(self):
+        url = reverse('enrollment-detail', args=[self.enrollment.id])
+        payload = {"status": "c"}
+        response = self.client.patch(url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.enrollment.refresh_from_db()
+        self.assertEqual(self.enrollment.status, 'c')
+
+    def test_enrollment_routing_integrity(self):
+        url = reverse('enrollment-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
