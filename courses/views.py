@@ -17,7 +17,7 @@ class CourseFilter(django_filters.FilterSet):
         fields = ['status', 'created_date']
 
 class CourseViewSet(ModelViewSet):
-    queryset = models.Course.objects.all()
+    queryset = models.Course.objects.all().order_by('id')
     serializer_class = serializer.CourseSerializer
     pagination_class = BaseViewPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
