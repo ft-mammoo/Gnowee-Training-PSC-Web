@@ -29,3 +29,18 @@ class CourseViewSet(ModelViewSet):
         qs = Student.objects.filter(enrollments__course__id=pk)
         se = StudentSerializer(qs, many=True)
         return Response(data=se.data, status=status.HTTP_200_OK)
+    @action(methods=["GET", "POST"], detail=True)
+    def teachers(self, request, pk=None):
+        course = self.get_object()
+        if request.method == "GET":
+            teachers = models.CourseTeachers.objects.filter(course=course)
+            se = serializer.CourseTeacherSerializer(teachers, many=True)
+            return Response(data=se.data, status=status.HTTP_200_OK)
+        elif request.method == "POST":
+            data = request.data.copy()
+            data['course'] = pk
+            se = serializer.CourseTeacherSerializer(data=data)
+            if se.is_valid():
+                se.save()
+                return Response(data=se.data, status=status.HTTP_201_CREATED)
+            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
