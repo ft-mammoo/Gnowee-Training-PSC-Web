@@ -1,5 +1,8 @@
+from rest_framework import serializers
 from courses import models
 from utility.serializer import BaseSerializer
+from staffs.serializer import TeacherModelSerializer
+from students.serializer import StudentSerializer
 
 class CourseSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -20,3 +23,23 @@ class MaterialSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Material
         fields = "__all__"
+
+class StudentWithEnrollmentSerializer(StudentSerializer):
+    enrollment = serializers.SerializerMethodField()
+
+    class Meta(StudentSerializer.Meta):
+        # Specific fields required by the documentation
+        fields = ['id', 'first_name', 'last_name', 'contact_number', 'status', 'enrollment']
+
+    def get_enrollment(self, obj):
+        # This 'current_course_enrollment' was created by our Prefetch in the view
+        enrollments = getattr(obj, 'current_course_enrollment', [])
+        if enrollments:
+            # Since it's a list from prefetch_related, we take the first (and only) match
+            enrollment = enrollments[0]
+            return {
+                "id": enrollment.id,
+                "enrollment_date": enrollment.enrollment_date,
+                "status": enrollment.status
+            }
+        return None
