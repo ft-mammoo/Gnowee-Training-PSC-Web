@@ -1,4 +1,5 @@
 import django_filters
+from django.db.models import Prefetch, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.viewsets import ModelViewSet
@@ -7,8 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from courses import models, serializer
-from students.models import Student
-from students.serializer import StudentSerializer
+from students.models import Student, Enrollment
 from utility.views import BaseViewPagination
 
 class CourseFilter(django_filters.FilterSet):
@@ -26,8 +26,41 @@ class CourseViewSet(ModelViewSet):
     ordering_fields = ['title', 'created_date']
     @action(methods=["GET"], detail=True)
     def students(self, request, pk=None):
-        qs = Student.objects.filter(enrollments__course__id=pk)
-        se = StudentSerializer(qs, many=True)
+        try:
+            course = models.Course.objects.get(pk=pk)
+        except models.Course.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        # We prefetch enrollments for this course to avoid N+1 queries when accessing enrollment data in the serializer
+        enrollment_qs = Enrollment.objects.filter(course=course)
+        qs = Student.objects.filter(enrollments__course=course).prefetch_related(
+            Prefetch('enrollments', queryset=enrollment_qs, to_attr='current_course_enrollment')
+        ).distinct().order_by('id')
+
+        # 2. Filtering logic based on query parameters
+        e_status = request.query_params.get('enrollment_status')
+        if e_status:
+            qs = qs.filter(enrollments__status=e_status, enrollments__course=course)
+            
+        s_status = request.query_params.get('student_status')
+        if s_status:
+            qs = qs.filter(status=s_status)
+
+        # 3. Search functionality on first_name and last_name
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
+
+        # 4. Pagination and serialization
+        # Since we are using a custom serializer that needs to access enrollment data, we handle pagination manually here
+        if self.paginator is not None:
+            self.paginator.page_size = 30
+        
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            se = serializer.StudentWithEnrollmentSerializer(page, many=True)
+            return self.get_paginated_response(se.data)
+        
+        se = serializer.StudentWithEnrollmentSerializer(qs, many=True)
         return Response(data=se.data, status=status.HTTP_200_OK)
     @action(methods=["GET", "POST"], detail=True)
     def teachers(self, request, pk=None):
