@@ -1,7 +1,6 @@
 from datetime import date
 from django.db import transaction
 from rest_framework import serializers
-from courses.serializer import CourseSerializer, CourseMinimalSerializer
 from utility.models import User
 from students import models
 from utility.serializer import BaseSerializer
@@ -42,9 +41,10 @@ class StudentSerializer(BaseSerializer):
     def __init__(self, *args, **kwargs):
         allowed_list = kwargs.pop('fields', None)
         super().__init__(*args, **kwargs)
+        from courses.serializer import CourseSerializer, CourseMinimalSerializer
         request = self.context.get('request')
         
-        if self.instance:
+        if self.instance and 'user' in self.fields:
             self.fields['user'].required = False
 
         include_courses = (allowed_list and 'courses' in allowed_list) or (request and request.query_params.get('courses'))
