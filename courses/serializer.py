@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from courses import models
 from utility.serializer import BaseSerializer
-from staffs.serializer import TeacherModelSerializer
+from staffs.serializer import TeacherMinimalSerializer, TeacherNameSerializer
 from students.serializer import StudentSerializer
 
 class CourseSerializer(BaseSerializer):
@@ -19,10 +19,25 @@ class CourseTeacherSerializer(BaseSerializer):
         model = models.CourseTeachers
         fields = "__all__"
 
+class CourseTeacherMinimalSerializer(BaseSerializer):
+    teacher = TeacherMinimalSerializer(read_only=True)
+
+    class Meta(BaseSerializer.Meta):
+        model = models.CourseTeachers
+        fields = ['id', 'teacher', 'status', 'created_date']
+
 class MaterialSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Material
         fields = "__all__"
+
+class MaterialNestedSerializer(BaseSerializer):
+    teacher = TeacherNameSerializer(read_only=True)
+    upload_date = serializers.DateField(source='uploaded_at', read_only=True)
+
+    class Meta(BaseSerializer.Meta):
+        model = models.Material
+        fields = ['id', 'title', 'description', 'file_url', 'upload_date', 'type', 'status', 'teacher']
 
 class StudentWithEnrollmentSerializer(StudentSerializer):
     enrollment = serializers.SerializerMethodField()
