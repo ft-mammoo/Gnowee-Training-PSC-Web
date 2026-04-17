@@ -65,14 +65,62 @@ class CourseViewSet(ModelViewSet):
     @action(methods=["GET", "POST"], detail=True)
     def teachers(self, request, pk=None):
         course = self.get_object()
+        
         if request.method == "GET":
-            teachers = models.CourseTeachers.objects.filter(course=course)
-            se = serializer.CourseTeacherSerializer(teachers, many=True)
+            teachers = models.CourseTeachers.objects.filter(course=course).select_related('teacher')
+            se = serializer.CourseTeacherMinimalSerializer(teachers, many=True)
             return Response(data=se.data, status=status.HTTP_200_OK)
+            
         elif request.method == "POST":
             data = request.data.copy()
             data['course'] = pk
+            teacher_id = data.get('teacher')
+            if teacher_id and models.CourseTeachers.objects.filter(
+                course=course, 
+                teacher_id=teacher_id, 
+                status='a'
+            ).exists():
+                return Response(
+                    {"detail": "This teacher is already assigned to this course."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             se = serializer.CourseTeacherSerializer(data=data)
+            if se.is_valid():
+                se.save()
+                return Response(data=se.data, status=status.HTTP_201_CREATED)
+            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(methods=["GET", "POST"], detail=True)
+    def materials(self, request, pk=None):
+        course = self.get_object()
+
+        if request.method == "GET":
+            qs = models.Material.objects.filter(course=course).select_related('teacher').order_by('id')
+            m_type = request.query_params.get('type')
+            if m_type:
+                qs = qs.filter(type=m_type)
+            
+            status_param = request.query_params.get('status')
+            if status_param:
+                qs = qs.filter(status=status_param)
+            search = request.query_params.get('search')
+            if search:
+                qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+            if self.paginator is not None:
+                self.paginator.page_size = 20
+            
+            page = self.paginate_queryset(qs)
+            if page is not None:
+                se = serializer.MaterialNestedSerializer(page, many=True)
+                return self.get_paginated_response(se.data)
+            
+            se = serializer.MaterialNestedSerializer(qs, many=True)
+            return Response(data=se.data, status=status.HTTP_200_OK)
+
+        elif request.method == "POST":
+            data = request.data.copy()
+            data['course'] = pk
+            se = serializer.MaterialSerializer(data=data)
             if se.is_valid():
                 se.save()
                 return Response(data=se.data, status=status.HTTP_201_CREATED)
