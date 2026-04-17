@@ -38,7 +38,7 @@ class Material(SoftDeleteModel):
         ('i', 'Inactive'),
     )
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='materials')
-    teacher = models.ForeignKey('staffs.Teacher', on_delete=models.CASCADE, related_name='materials')
+    teacher = models.ForeignKey('staffs.Teacher', on_delete=models.CASCADE, related_name='uploaded_materials')
     title = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
     file_url = models.CharField(max_length=255)
