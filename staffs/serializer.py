@@ -6,6 +6,16 @@ class TeacherModelSerializer(BaseSerializer):
         model = models.Teacher
         fields = '__all__'
 
+class TeacherMinimalSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
+        model = models.Teacher
+        fields = ['id', 'first_name', 'last_name', 'employee_code', 'email_institutional']
+
+class TeacherNameSerializer(BaseSerializer):
+    class Meta(BaseSerializer.Meta):
+        model = models.Teacher
+        fields = ['id', 'first_name', 'last_name']
+
 class QualificationModelSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Qualification
