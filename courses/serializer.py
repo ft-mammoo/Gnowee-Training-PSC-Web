@@ -58,3 +58,14 @@ class StudentWithEnrollmentSerializer(StudentSerializer):
                 "status": enrollment.status
             }
         return None
+
+class CourseStatsSerializer(BaseSerializer):
+    total_students = serializers.IntegerField()
+    active_students = serializers.IntegerField()
+    total_teachers = serializers.IntegerField()
+    total_materials = serializers.IntegerField()
+    total_assignments = serializers.IntegerField()
+    
+    class Meta(BaseSerializer.Meta):
+        model = models.Course
+        fields = ['id', 'title', 'status', 'total_students', 'active_students', 'total_teachers', 'total_materials', 'total_assignments']
