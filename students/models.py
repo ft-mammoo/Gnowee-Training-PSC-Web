@@ -46,5 +46,10 @@ class Enrollment(SoftDeleteModel):
     enrollment_date = models.DateField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='a')
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['student', 'course'], name='unique_student_course_enrollment')
+        ]
+
     def __str__(self):
         return f"Enrollment {self.id}: Student {self.student_id} in Course {self.course_id}"
