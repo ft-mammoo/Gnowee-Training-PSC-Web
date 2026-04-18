@@ -10,6 +10,8 @@ from rest_framework import status
 from assessments.models import Assignment, Exams
 from assessments.serializer import AssignmentSerializer, AssignmentNestedSerializer, ExamsSerializer, ExamNestedSerializer
 from courses import models, serializer
+from staffs.models import Teacher
+from staffs.serializer import TeacherNameSerializer
 from students.models import Student, Enrollment
 from utility.views import BaseViewPagination
 
@@ -67,8 +69,8 @@ class CourseViewSet(ModelViewSet):
         course = self.get_object()
         
         if request.method == "GET":
-            teachers = models.CourseTeachers.objects.filter(course=course).select_related('teacher')
-            se = serializer.CourseTeacherMinimalSerializer(teachers, many=True)
+            qs = Teacher.objects.filter(course_teachers__course=course, course_teachers__status='a').select_related('user').order_by('id')
+            se = TeacherNameSerializer(qs, many=True)
             return Response(data=se.data, status=status.HTTP_200_OK)
             
         elif request.method == "POST":
