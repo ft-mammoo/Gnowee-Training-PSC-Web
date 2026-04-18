@@ -137,7 +137,10 @@ class CourseStudentsNestedTests(APITestCase):
                 first_name=f"First_{i}",
                 last_name=f"Last_{i}",
                 date_of_birth="2000-01-01",
+                gender='m',
                 contact_number="1234567890",
+                emergency_contact_name="Emergency Name",
+                emergency_contact_number="0987654321",
                 date_joined=date.today()
             )
             # Link each student to this specific course
