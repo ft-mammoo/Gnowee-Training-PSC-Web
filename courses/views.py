@@ -28,10 +28,8 @@ class CourseViewSet(ModelViewSet):
     ordering_fields = ['title', 'created_date']
     @action(methods=["GET"], detail=True)
     def students(self, request, pk=None):
-        try:
-            course = models.Course.objects.get(pk=pk)
-        except models.Course.DoesNotExist:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        course = self.get_object()
+
         # We prefetch enrollments for this course to avoid N+1 queries when accessing enrollment data in the serializer
         enrollment_qs = Enrollment.all_objects.filter(course=course)
         qs = Student.objects.filter(enrollments__course=course).select_related('user').prefetch_related(
@@ -59,10 +57,10 @@ class CourseViewSet(ModelViewSet):
         
         page = self.paginate_queryset(qs)
         if page is not None:
-            se = serializer.StudentWithEnrollmentSerializer(page, many=True)
+            se = serializer.StudentWithEnrollmentSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(se.data)
         
-        se = serializer.StudentWithEnrollmentSerializer(qs, many=True)
+        se = serializer.StudentWithEnrollmentSerializer(qs, many=True, context={'request': request})
         return Response(data=se.data, status=status.HTTP_200_OK)
     @action(methods=["GET", "POST"], detail=True)
     def teachers(self, request, pk=None):
