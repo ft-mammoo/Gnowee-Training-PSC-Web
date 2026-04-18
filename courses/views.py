@@ -13,7 +13,7 @@ from courses import models, serializer
 from staffs.models import Teacher
 from staffs.serializer import TeacherNameSerializer
 from students.models import Student, Enrollment
-from utility.views import BaseViewPagination, CourseStudentsPagination
+from utility.views import BaseViewPagination, CourseStatsPagination, CourseStudentsPagination, StudentsAssignmentPagination, StudentsExamsPagination
 
 class CourseFilter(django_filters.FilterSet):
     class Meta:
@@ -57,8 +57,7 @@ class CourseViewSet(ModelViewSet):
         page = paginator.paginate_queryset(qs, request)
         if page is not None:
             se = serializer.StudentWithEnrollmentSerializer(page, many=True, context={'request': request})
-            return self.get_paginated_response(se.data)
-        
+            return paginator.get_paginated_response(se.data)
         se = serializer.StudentWithEnrollmentSerializer(qs, many=True, context={'request': request})
         return Response(data=se.data, status=status.HTTP_200_OK)
     @action(methods=["GET", "POST"], detail=True)
@@ -110,14 +109,11 @@ class CourseViewSet(ModelViewSet):
             if upload_date:
                 qs = qs.filter(uploaded_at=upload_date)
 
-            if self.paginator is not None:
-                self.paginator.page_size = 20
-            
-            page = self.paginate_queryset(qs)
+            paginator = BaseViewPagination()
+            page = paginator.paginate_queryset(qs, request)
             if page is not None:
                 se = serializer.MaterialNestedSerializer(page, many=True)
-                return self.get_paginated_response(se.data)
-            
+                return paginator.get_paginated_response(se.data)
             se = serializer.MaterialNestedSerializer(qs, many=True)
             return Response(data=se.data, status=status.HTTP_200_OK)
 
@@ -144,12 +140,10 @@ class CourseViewSet(ModelViewSet):
             if teacher:
                 qs = qs.filter(teacher_id=teacher)
             
-            if self.paginator:
-                self.paginator.page_size = 15
-
-            page = self.paginate_queryset(qs)
+            paginator = StudentsAssignmentPagination()
+            page = paginator.paginate_queryset(qs, request)
             if page is not None:
-                return self.get_paginated_response(AssignmentNestedSerializer(page, many=True).data)
+                return paginator.get_paginated_response(AssignmentNestedSerializer(page, many=True).data)
             return Response(data=AssignmentNestedSerializer(qs, many=True).data, status=status.HTTP_200_OK)
         
         elif request.method == "POST":
@@ -176,12 +170,10 @@ class CourseViewSet(ModelViewSet):
         if end_time:
             qs = qs.filter(end_time__lte=end_time)
 
-        if self.paginator:
-            self.paginator.page_size = 10
-        
-        page = self.paginate_queryset(qs)
+        paginator = StudentsExamsPagination()
+        page = paginator.paginate_queryset(qs, request)
         if page is not None:
-            return self.get_paginated_response(ExamNestedSerializer(page, many=True).data)
+            return paginator.get_paginated_response(ExamNestedSerializer(page, many=True).data)
         return Response(data=ExamNestedSerializer(qs, many=True).data, status=status.HTTP_200_OK)
     
     @action(methods=["GET"], detail=False, url_path='with-stats')
@@ -198,10 +190,8 @@ class CourseViewSet(ModelViewSet):
         if stat_status:
             qs = qs.filter(status=stat_status)
 
-        if self.paginator:
-            self.paginator.page_size = 15
-        
-        page = self.paginate_queryset(qs)
+        paginator = CourseStatsPagination()
+        page = paginator.paginate_queryset(qs, request)
         if page is not None:
-            return self.get_paginated_response(serializer.CourseStatsSerializer(page, many=True).data)
+            return paginator.get_paginated_response(serializer.CourseStatsSerializer(page, many=True).data)
         return Response(data=serializer.CourseStatsSerializer(qs, many=True).data, status=status.HTTP_200_OK)
