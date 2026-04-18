@@ -34,7 +34,7 @@ class CourseViewSet(ModelViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         # We prefetch enrollments for this course to avoid N+1 queries when accessing enrollment data in the serializer
         enrollment_qs = Enrollment.objects.filter(course=course)
-        qs = Student.objects.filter(enrollments__course=course).prefetch_related(
+        qs = Student.objects.filter(enrollments__course=course).select_related('user').prefetch_related(
             Prefetch('enrollments', queryset=enrollment_qs, to_attr='current_course_enrollment')
         ).distinct().order_by('id')
 
