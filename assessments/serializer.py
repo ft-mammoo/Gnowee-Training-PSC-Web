@@ -73,7 +73,7 @@ class AssignmentNestedSerializer(BaseSerializer):
 
 class ExamNestedSerializer(BaseSerializer):
     duration = serializers.SerializerMethodField()
-    question_count = serializers.SerializerMethodField()
+    question_count = serializers.IntegerField(read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = models.Exams
@@ -87,6 +87,3 @@ class ExamNestedSerializer(BaseSerializer):
             minutes, seconds = divmod(remainder, 60)
             return f"{hours:02}:{minutes:02}:{seconds:02}"
         return None
-    
-    def get_question_count(self, obj):
-        return obj.exam_questions.count()

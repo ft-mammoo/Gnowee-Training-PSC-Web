@@ -167,7 +167,9 @@ class CourseViewSet(ModelViewSet):
     @action(methods=["GET"], detail=True)
     def exams(self,request, pk=None):
         course = self.get_object()
-        qs = Exams.objects.filter(course=course).order_by('id')
+        qs = Exams.objects.filter(course=course).annotate(
+            question_count=Count('exam_questions', distinct=True)
+        ).order_by('id')
 
         start_time = request.query_params.get('start_time')
         if start_time:
