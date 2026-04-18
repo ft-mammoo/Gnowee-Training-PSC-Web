@@ -13,7 +13,7 @@ from courses import models, serializer
 from staffs.models import Teacher
 from staffs.serializer import TeacherNameSerializer
 from students.models import Student, Enrollment
-from utility.views import BaseViewPagination
+from utility.views import BaseViewPagination, CourseStudentsPagination
 
 class CourseFilter(django_filters.FilterSet):
     class Meta:
@@ -53,11 +53,8 @@ class CourseViewSet(ModelViewSet):
             qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
 
         # 4. Pagination and serialization
-        # Since we are using a custom serializer that needs to access enrollment data, we handle pagination manually here
-        if self.paginator is not None:
-            self.paginator.page_size = 30
-        
-        page = self.paginate_queryset(qs)
+        paginator = CourseStudentsPagination()
+        page = paginator.paginate_queryset(qs, request)
         if page is not None:
             se = serializer.StudentWithEnrollmentSerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(se.data)
