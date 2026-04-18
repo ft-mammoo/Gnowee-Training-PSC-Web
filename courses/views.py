@@ -190,11 +190,11 @@ class CourseViewSet(ModelViewSet):
     @action(methods=["GET"], detail=False, url_path='with-stats')
     def with_stats(self, request):
         qs = models.Course.objects.annotate(
-            total_students=Count('enrollments', distinct=True),
+            total_students=Count('enrollments', filter=~Q(enrollments__status='i'), distinct=True),
             active_students=Count('enrollments', filter=Q(enrollments__status='a'), distinct=True),
-            total_teachers=Count('course_teachers', distinct=True),
-            total_materials=Count('materials', distinct=True),
-            total_assignments=Count('assignment', distinct=True)
+            total_teachers=Count('course_teachers', filter=~Q(course_teachers__status='i'), distinct=True),
+            total_materials=Count('materials', filter=~Q(materials__status='i'), distinct=True),
+            total_assignments=Count('assignment', filter=~Q(assignment__status='i'), distinct=True)
         ).order_by('id')
 
         stat_status = request.query_params.get('status')
