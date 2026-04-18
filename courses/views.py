@@ -152,7 +152,7 @@ class CourseViewSet(ModelViewSet):
 
             page = self.paginate_queryset(qs)
             if page is not None:
-                return self.get_paginated_response(AssignmentNestedSerializer(page, many=True).data, status=status.HTTP_200_OK)
+                return self.get_paginated_response(AssignmentNestedSerializer(page, many=True).data)
             return Response(data=AssignmentNestedSerializer(qs, many=True).data, status=status.HTTP_200_OK)
         
         elif request.method == "POST":
@@ -182,7 +182,7 @@ class CourseViewSet(ModelViewSet):
         
         page = self.paginate_queryset(qs)
         if page is not None:
-            return self.get_paginated_response(ExamNestedSerializer(page, many=True).data, status=status.HTTP_200_OK)
+            return self.get_paginated_response(ExamNestedSerializer(page, many=True).data)
         return Response(data=ExamNestedSerializer(qs, many=True).data, status=status.HTTP_200_OK)
     
     @action(methods=["GET"], detail=False, url_path='with-stats')
@@ -204,5 +204,5 @@ class CourseViewSet(ModelViewSet):
         
         page = self.paginate_queryset(qs)
         if page is not None:
-            return self.get_paginated_response(serializer.CourseStatsSerializer(page, many=True).data, status=status.HTTP_200_OK)
+            return self.get_paginated_response(serializer.CourseStatsSerializer(page, many=True).data)
         return Response(data=serializer.CourseStatsSerializer(qs, many=True).data, status=status.HTTP_200_OK)
