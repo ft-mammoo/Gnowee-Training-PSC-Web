@@ -48,7 +48,7 @@ class Enrollment(SoftDeleteModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['student', 'course'], name='unique_student_course_enrollment')
+            models.UniqueConstraint(fields=['student', 'course'], condition=~models.Q(status='i'), name='unique_student_course_enrollment')
         ]
 
     def __str__(self):
