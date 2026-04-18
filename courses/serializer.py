@@ -41,6 +41,7 @@ class MaterialNestedSerializer(BaseSerializer):
 
 class StudentWithEnrollmentSerializer(StudentSerializer):
     enrollment = serializers.SerializerMethodField()
+    user=None  # To Disable the inherited user field from this serializer, as it's not required in the documentation response
 
     class Meta(StudentSerializer.Meta):
         # Specific fields required by the documentation
