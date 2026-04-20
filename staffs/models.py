@@ -28,7 +28,7 @@ class Teacher(SoftDeleteModel):
     contact_number = models.CharField(max_length=10, null=True, blank=True)
     emergency_contact_number = models.CharField(max_length=10, null=True, blank=True)
     email_institutional = models.CharField(max_length=150, unique=True) 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="a")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
     profile_picture = models.CharField(max_length=255, blank=True, null=True)
     date_joined = models.DateField(auto_now_add=True)
 
