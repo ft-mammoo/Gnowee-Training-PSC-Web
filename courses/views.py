@@ -159,7 +159,7 @@ class CourseViewSet(ModelViewSet):
     def exams(self,request, pk=None):
         course = self.get_object()
         qs = Exams.objects.filter(course=course).annotate(
-            question_count=Count('exam_questions', distinct=True)
+            question_count=Count('exam_questions', filter=~Q(exam_questions__status='i'), distinct=True)
         ).order_by('id')
 
         start_time = request.query_params.get('start_time')
