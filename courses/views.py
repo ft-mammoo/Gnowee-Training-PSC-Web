@@ -66,7 +66,7 @@ class CourseViewSet(ModelViewSet):
         
         if request.method == "GET":
             qs = Teacher.objects.filter(course_teachers__course=course, course_teachers__status='a').select_related('user').order_by('id')
-            se = TeacherNameSerializer(qs, many=True)
+            se = TeacherNameSerializer(qs, many=True, context={'request': request})
             return Response(data=se.data, status=status.HTTP_200_OK)
             
         elif request.method == "POST":
@@ -112,9 +112,9 @@ class CourseViewSet(ModelViewSet):
             paginator = BaseViewPagination()
             page = paginator.paginate_queryset(qs, request)
             if page is not None:
-                se = serializer.MaterialNestedSerializer(page, many=True)
+                se = serializer.MaterialNestedSerializer(page, many=True, context={'request': request})
                 return paginator.get_paginated_response(se.data)
-            se = serializer.MaterialNestedSerializer(qs, many=True)
+            se = serializer.MaterialNestedSerializer(qs, many=True, context={'request': request})
             return Response(data=se.data, status=status.HTTP_200_OK)
 
         elif request.method == "POST":
@@ -143,8 +143,10 @@ class CourseViewSet(ModelViewSet):
             paginator = StudentsAssignmentPagination()
             page = paginator.paginate_queryset(qs, request)
             if page is not None:
-                return paginator.get_paginated_response(AssignmentNestedSerializer(page, many=True).data)
-            return Response(data=AssignmentNestedSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+                se = AssignmentNestedSerializer(page, many=True, context={'request': request})
+                return paginator.get_paginated_response(se.data)
+            se = AssignmentNestedSerializer(qs, many=True, context={'request': request})
+            return Response(data=se.data, status=status.HTTP_200_OK)
         
         elif request.method == "POST":
             data = request.data.copy()
@@ -173,8 +175,10 @@ class CourseViewSet(ModelViewSet):
         paginator = StudentsExamsPagination()
         page = paginator.paginate_queryset(qs, request)
         if page is not None:
-            return paginator.get_paginated_response(ExamNestedSerializer(page, many=True).data)
-        return Response(data=ExamNestedSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+            se = ExamNestedSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(se.data)
+        se = ExamNestedSerializer(qs, many=True, context={'request': request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
     
     @action(methods=["GET"], detail=False, url_path='with-stats')
     def with_stats(self, request):
@@ -193,5 +197,7 @@ class CourseViewSet(ModelViewSet):
         paginator = CourseStatsPagination()
         page = paginator.paginate_queryset(qs, request)
         if page is not None:
-            return paginator.get_paginated_response(serializer.CourseStatsSerializer(page, many=True).data)
-        return Response(data=serializer.CourseStatsSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+            se = serializer.CourseStatsSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(se.data)
+        se = serializer.CourseStatsSerializer(qs, many=True, context={'request': request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
