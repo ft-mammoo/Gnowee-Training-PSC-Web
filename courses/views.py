@@ -65,7 +65,10 @@ class CourseViewSet(ModelViewSet):
         course = self.get_object()
         
         if request.method == "GET":
-            qs = Teacher.objects.filter(course_teachers__course=course, course_teachers__status='a').select_related('user').order_by('id')
+            qs = Teacher.objects.filter(
+                teacher_courses__course=course,
+                teacher_courses__status='a'
+            ).select_related('user').distinct().order_by('id')
             se = TeacherNameSerializer(qs, many=True, context={'request': request})
             return Response(data=se.data, status=status.HTTP_200_OK)
             
