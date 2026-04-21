@@ -3,12 +3,14 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from datetime import date
 
 from courses.models import Course, CourseTeachers
 from staffs.models import Teacher
 from students.models import Student, Enrollment
+
+User = get_user_model()
 
 # --- 2.1 TESTS ---
 class CourseAPITests(APITestCase):
