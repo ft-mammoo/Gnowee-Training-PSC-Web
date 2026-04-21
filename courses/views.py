@@ -85,7 +85,7 @@ class CourseViewSet(ModelViewSet):
                     {"detail": "This teacher is already assigned to this course."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            se = serializer.CourseTeacherSerializer(data=data)
+            se = serializer.CourseTeacherSerializer(data=data, context={'request': request})
             if se.is_valid():
                 se.save()
                 return Response(data=se.data, status=status.HTTP_201_CREATED)
@@ -123,7 +123,7 @@ class CourseViewSet(ModelViewSet):
         elif request.method == "POST":
             data = request.data.copy()
             data['course'] = pk
-            se = serializer.MaterialSerializer(data=data)
+            se = serializer.MaterialSerializer(data=data, context={'request': request})
             if se.is_valid():
                 se.save()
                 return Response(data=se.data, status=status.HTTP_201_CREATED)
@@ -154,7 +154,7 @@ class CourseViewSet(ModelViewSet):
         elif request.method == "POST":
             data = request.data.copy()
             data['course']=pk
-            se = AssignmentSerializer(data=data)
+            se = AssignmentSerializer(data=data, context={'request': request})
             if se.is_valid():
                 se.save()
                 return Response(data=se.data, status=status.HTTP_201_CREATED)
