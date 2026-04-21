@@ -1,3 +1,4 @@
+import uuid
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -125,10 +126,21 @@ class CourseNestedAPITests(APITestCase):
 # --- 2.2 STUDENTS NESTED ENDPOINT TESTS ---
 class CourseStudentsNestedTests(APITestCase):
     def setUp(self):
-        # Create a published course
-        self.course = Course.objects.create(title="Django Bootcamp", status="p")
-        self.user = User.objects.create_user(username="admin_user", password="password123")
-        self.client.force_authenticate(user=self.user)
+        unique_suffix = str(uuid.uuid4())[:8]
+        self.course = Course.objects.create(title=f"Backend Sprint {unique_suffix}", status="p")
+        self.user = User.objects.create_user(username=f"sofia_{unique_suffix}", password="password123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            first_name="Sofia",
+            last_name="Rossi",
+            gender="f",
+            employee_code=f"EMP_{unique_suffix}",
+            experience_years=8,
+            email_institutional=f"sofia_{unique_suffix}@edu.com",
+            status="a",
+            date_joined=date.today()
+        )
+        self.teachers_url = reverse('course-teachers', kwargs={'pk': self.course.pk})
         
         # Requirement: pagination_size=30
         # We create 35 students to verify that only 30 appear per page
