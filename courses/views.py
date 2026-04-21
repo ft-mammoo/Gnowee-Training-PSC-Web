@@ -1,5 +1,6 @@
 import django_filters
 from django.db.models import Prefetch, Q, Count
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.viewsets import ModelViewSet
@@ -30,7 +31,7 @@ class CourseViewSet(ModelViewSet):
     ordering_fields = ['title', 'created_date']
     @action(methods=["GET"], detail=True)
     def students(self, request, pk=None):
-        course = self.get_object()
+        course = get_object_or_404(self.get_queryset(), pk=pk)
 
         # We prefetch enrollments for this course to avoid N+1 queries when accessing enrollment data in the serializer
         enrollment_qs = Enrollment.all_objects.filter(course=course)
@@ -62,8 +63,8 @@ class CourseViewSet(ModelViewSet):
         return Response(data=se.data, status=status.HTTP_200_OK)
     @action(methods=["GET", "POST"], detail=True)
     def teachers(self, request, pk=None):
-        course = self.get_object()
-        
+        course = get_object_or_404(self.get_queryset(), pk=pk)
+
         if request.method == "GET":
             qs = Teacher.objects.filter(
                 teacher_courses__course=course,
@@ -93,7 +94,7 @@ class CourseViewSet(ModelViewSet):
         
     @action(methods=["GET", "POST"], detail=True)
     def materials(self, request, pk=None):
-        course = self.get_object()
+        course = get_object_or_404(self.get_queryset(), pk=pk)
 
         if request.method == "GET":
             qs = models.Material.objects.filter(course=course).select_related('teacher').order_by('id')
@@ -131,7 +132,7 @@ class CourseViewSet(ModelViewSet):
     
     @action(methods=["GET", "POST"], detail=True)
     def assignments(self, request, pk=None):
-        course = self.get_object()
+        course = get_object_or_404(self.get_queryset(), pk=pk)
         if request.method == "GET":
             qs = Assignment.objects.filter(course=course).select_related('teacher').order_by('id')
             
@@ -162,7 +163,7 @@ class CourseViewSet(ModelViewSet):
     
     @action(methods=["GET"], detail=True)
     def exams(self,request, pk=None):
-        course = self.get_object()
+        course = get_object_or_404(self.get_queryset(), pk=pk)
         qs = Exams.objects.filter(course=course, status='a').annotate(
             question_count=Count('exam_questions', filter=~Q(exam_questions__status='i'), distinct=True)
         ).order_by('id')
