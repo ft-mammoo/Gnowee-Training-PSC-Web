@@ -14,7 +14,10 @@ from courses import models, serializer
 from staffs.models import Teacher
 from staffs.serializer import TeacherNameSerializer
 from students.models import Student, Enrollment
-from utility.views import BaseViewPagination, CourseStatsPagination, CourseStudentsPagination, StudentsAssignmentPagination, StudentsExamsPagination
+from utility.views import (
+    BaseViewPagination, CourseStatsPagination, CourseStudentsPagination,
+    StudentsAssignmentPagination, StudentsExamsPagination, MaterialPagination
+)
 
 class CourseFilter(django_filters.FilterSet):
     class Meta:
@@ -205,3 +208,27 @@ class CourseViewSet(ModelViewSet):
             return paginator.get_paginated_response(se.data)
         se = serializer.CourseStatsSerializer(qs, many=True, context={'request': request})
         return Response(data=se.data, status=status.HTTP_200_OK)
+
+class MaterialFilter(django_filters.FilterSet):
+    upload_date = django_filters.DateFilter(field_name='uploaded_at', lookup_expr='date')
+    class Meta:
+        model = models.Material
+        fields = ['course', 'type', 'status', 'teacher', 'upload_date']
+
+class MaterialViewSet(ModelViewSet):
+    queryset = models.Material.objects.all().select_related('course', 'teacher').order_by('id')
+    pagination_class = MaterialPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = MaterialFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['title', 'uploaded_at']
+    
+    def get_serializer_class(self):
+        if self.action in ['list', 'retrieve']:
+            return serializer.MaterialListSerializer
+        return serializer.MaterialSerializer
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'request': self.request})
+        return context
