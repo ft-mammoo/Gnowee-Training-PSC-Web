@@ -196,3 +196,75 @@ class CourseStudentsNestedTests(APITestCase):
         # Should only find the student with "Last_10"
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['last_name'], "Last_10")
+
+from courses.models import Material
+
+class CourseMaterialsTests(APITestCase):
+    def setUp(self):
+        import uuid
+        self.unique_suffix = str(uuid.uuid4())[:8]
+        
+        # Setup Course and Teacher
+        self.course = Course.objects.create(title=f"Global Course {self.unique_suffix}", status='p')
+        self.user = User.objects.create_user(username=f"staff_{self.unique_suffix}", password="p123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            employee_code=f"E_{self.unique_suffix}",
+            email_institutional=f"staff_{self.unique_suffix}@edu.com",
+            status='a'
+        )
+        
+        self.materials_url = reverse('material-list')
+
+    def test_get_materials_performance_and_pagination(self):
+        # Create 35 materials (should trigger 2 pages since page_size=30)
+        materials = [
+            Material(
+                course=self.course,
+                teacher=self.teacher,
+                title=f"Material {i}",
+                file_url=f"http://example.com/file{i}.pdf",
+                type="d",
+                status="a"
+            ) for i in range(35)
+        ]
+        Material.objects.bulk_create(materials)
+
+        print(f"\n--- SQL Queries for Global GET {self.materials_url} ---")
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(self.materials_url)
+            
+            for i, query in enumerate(ctx.captured_queries, 1):
+                print(f"Query {i}: {query['sql']}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify Pagination: Page 1 should have exactly 30 results
+        self.assertEqual(len(response.data['results']), 30)
+        self.assertEqual(response.data['count'], 35)
+
+        # Verify SQL: Expect ~2-3 queries (1 for Count, 1 for Data with JOINS)
+        # Without select_related, this would be 30+ queries.
+        self.assertLessEqual(len(ctx), 3, "N+1 query detected on top-level materials list!")
+
+    def test_material_search_and_filters(self):
+        # Create a specific material to find
+        target = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Unique Target Title",
+            description="Find me",
+            type="v",
+            status="a"
+        )
+        
+        # Test Search
+        response = self.client.get(f"{self.materials_url}?search=Unique")
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], target.id)
+        
+        # Test Filter (type)
+        response = self.client.get(f"{self.materials_url}?type=v")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(response.data['results']) > 0)
+        self.assertEqual(response.data['results'][0]['type'], "v")
