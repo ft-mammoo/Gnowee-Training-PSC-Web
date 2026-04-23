@@ -201,7 +201,6 @@ from courses.models import Material
 
 class CourseMaterialsTests(APITestCase):
     def setUp(self):
-        import uuid
         self.unique_suffix = str(uuid.uuid4())[:8]
         
         # Setup Course and Teacher
