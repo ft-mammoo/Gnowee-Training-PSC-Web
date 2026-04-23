@@ -19,3 +19,6 @@ class CourseStudentsPagination(BaseViewPagination):
 
 class CourseStatsPagination(BaseViewPagination):
     page_size = 15
+
+class MaterialPagination(BaseViewPagination):
+    page_size = 30

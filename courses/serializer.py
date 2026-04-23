@@ -31,6 +31,15 @@ class MaterialSerializer(BaseSerializer):
         model = models.Material
         fields = "__all__"
 
+class MaterialListSerializer(BaseSerializer):
+    teacher = TeacherNameSerializer(read_only=True)
+    course = CourseMinimalSerializer(read_only=True)
+    upload_date = serializers.DateField(source='uploaded_at', read_only=True)
+
+    class Meta(BaseSerializer.Meta):
+        model = models.Material
+        fields = ['id', 'title', 'description', 'file_url', 'upload_date', 'type', 'status', 'teacher', 'course']
+
 class MaterialNestedSerializer(BaseSerializer):
     teacher = TeacherNameSerializer(read_only=True)
     upload_date = serializers.DateField(source='uploaded_at', read_only=True)
