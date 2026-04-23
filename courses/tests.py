@@ -268,3 +268,40 @@ class CourseMaterialsTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(len(response.data['results']) > 0)
         self.assertEqual(response.data['results'][0]['type'], "v")
+
+    def test_post_material_success(self):
+        """Verify successful material creation and file_url handling"""
+        payload = {
+            "course": self.course.id,
+            "teacher": self.teacher.id,
+            "title": "New Lecture Slides",
+            "description": "Introduction to DRF",
+            "file_url": "http://example.com/slides.pdf",
+            "type": "s",
+            "status": "a"
+        }
+        
+        # We expect exactly 2 for FK validation + 1 for INSERT
+        with self.assertNumQueries(3): # Adjust number based on your specific validation logic
+            response = self.client.post(self.materials_url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Material.objects.count(), 1)
+        self.assertEqual(response.data['title'], "New Lecture Slides")
+
+    def test_post_material_invalid_course(self):
+        """Edge Case: Ensure creation fails with a non-existent course ID"""
+        payload = {
+            "course": 9999, # Non-existent ID
+            "teacher": self.teacher.id,
+            "title": "Ghost Material",
+            "file_url": "http://example.com/ghost.pdf",
+            "type": "d",
+            "status": "a"
+        }
+        response = self.client.post(self.materials_url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('course', response.data)
+        # Verify no material was accidentally created
+        self.assertEqual(Material.objects.count(), 0)
