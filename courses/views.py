@@ -3,10 +3,10 @@ from django.db.models import Prefetch, Q, Count
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, mixins
 
 from assessments.models import Assignment, Exams
 from assessments.serializer import AssignmentSerializer, AssignmentNestedSerializer, ExamsSerializer, ExamNestedSerializer
@@ -232,3 +232,15 @@ class MaterialViewSet(ModelViewSet):
         context = super().get_serializer_context()
         context.update({'request': self.request})
         return context
+
+class CourseTeacherFilter(django_filters.FilterSet):
+    class Meta:
+        model = models.CourseTeachers
+        fields = ['course', 'teacher', 'status']
+
+class CourseTeacherViewSet(mixins.ListModelMixin, mixins.DestroyModelMixin, GenericViewSet):
+    queryset = models.CourseTeachers.objects.all().select_related('course', 'teacher__user').order_by('id')
+    serializer_class = serializer.CourseTeacherSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = CourseTeacherFilter
+    ordering_fields = ['created_date']
