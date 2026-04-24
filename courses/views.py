@@ -35,7 +35,7 @@ class ExamFilter(django_filters.FilterSet):
     # Using 'gte' and 'lte' lookups for precise time-range filtering
     start_time = django_filters.DateTimeFilter(lookup_expr='gte')
     end_time = django_filters.DateTimeFilter(lookup_expr='lte')
-    
+
     class Meta:
         model = Exams
         fields = ['start_time', 'end_time']
@@ -213,7 +213,7 @@ class CourseViewSet(ModelViewSet):
             active_students=Count('enrollments', filter=Q(enrollments__status='a'), distinct=True),
             total_teachers=Count('course_teachers', filter=~Q(course_teachers__status='i'), distinct=True),
             total_materials=Count('materials', filter=~Q(materials__status='i'), distinct=True),
-            total_assignments=Count('assignment', filter=~Q(assignment__status='i'), distinct=True)
+            total_assignments=Count('assignments', filter=~Q(assignments__status='i'), distinct=True)
         ).order_by('id')
 
         stat_status = request.query_params.get('status')
