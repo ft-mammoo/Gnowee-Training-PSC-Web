@@ -393,3 +393,42 @@ class CourseMaterialsTests(APITestCase):
         url = reverse('material-detail', kwargs={'pk': 9999})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+class CourseTeacherManagementTests(APITestCase):
+    def setUp(self):
+        self.unique_suffix = str(uuid.uuid4())[:8]
+        # Setup Course and Teacher for the test
+        self.course = Course.objects.create(title=f"Mgmt Course {self.unique_suffix}", status='p')
+        self.user = User.objects.create_user(username=f"admin_staff_{self.unique_suffix}", password="p123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            employee_code=f"E_MGMT_{self.unique_suffix}",
+            email_institutional=f"admin_{self.unique_suffix}@edu.com",
+            status='a'
+        )
+        self.base_url = reverse('course-teacher-list')
+
+    def test_list_assignments_performance_and_pagination(self):
+        """Verify optimized SQL (joins) and pagination of 50"""
+        # Create 55 assignments to trigger pagination
+        # We need unique courses for each assignment to test join scaling
+        for i in range(55):
+            c = Course.objects.create(title=f"Bulk Course {i}_{self.unique_suffix}", status='p')
+            CourseTeachers.objects.create(course=c, teacher=self.teacher, status='a')
+
+        print(f"\n--- SQL Queries for Global Course-Teacher List ---")
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(self.base_url)
+            
+            for i, query in enumerate(ctx.captured_queries, 1):
+                print(f"Query {i}: {query['sql']}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify Pagination
+        self.assertEqual(len(response.data['results']), 50) # Page size limit
+        self.assertEqual(response.data['count'], 55)
+
+        # N+1 Check: Expect 1 Count query + 1 SELECT query with INNER JOINs
+        # Without select_related, this would be 100+ queries!
+        self.assertLessEqual(len(ctx), 3, "N+1 query detected in assignments list!")
