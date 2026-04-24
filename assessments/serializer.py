@@ -1,3 +1,4 @@
+from datetime import timedelta
 from rest_framework import serializers
 from assessments import models
 from staffs.serializer import TeacherNameSerializer
@@ -86,4 +87,4 @@ class ExamNestedSerializer(BaseSerializer):
             hours, remainder = divmod(total_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
             return f"{hours:02}:{minutes:02}:{seconds:02}"
-        return None
+        return "00:00:00"
