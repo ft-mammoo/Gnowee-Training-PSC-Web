@@ -69,11 +69,11 @@ class CourseViewSet(ModelViewSet):
         course = get_object_or_404(self.get_queryset(), pk=pk)
 
         if request.method == "GET":
-            qs = Teacher.objects.filter(
-                teacher_courses__course=course,
-                teacher_courses__status='a'
-            ).select_related('user').distinct().order_by('id')
-            se = TeacherNameSerializer(qs, many=True, context={'request': request})
+            qs = models.CourseTeachers.objects.filter(
+                course=course, 
+                status='a'
+            ).select_related('teacher__user').distinct().order_by('id')
+            se = serializer.CourseTeacherMinimalSerializer(qs, many=True, context={'request': request})
             return Response(data=se.data, status=status.HTTP_200_OK)
             
         elif request.method == "POST":
