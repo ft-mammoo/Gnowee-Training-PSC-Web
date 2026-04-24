@@ -371,3 +371,25 @@ class CourseMaterialsTests(APITestCase):
         self.assertIn('course', response.data)
         material.refresh_from_db()
         self.assertEqual(material.course.id, self.course.id) # Should still be original
+
+    def test_delete_material_success(self):
+        """Verify successful deletion of a material"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Delete Me",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Material.objects.count(), 0)
+
+    def test_delete_material_404(self):
+        """Verify 404 when trying to delete a non-existent material"""
+        url = reverse('material-detail', kwargs={'pk': 9999})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
