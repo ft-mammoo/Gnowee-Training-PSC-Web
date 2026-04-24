@@ -31,6 +31,15 @@ class CourseFilter(django_filters.FilterSet):
         model = models.Course
         fields = ['status', 'created_date']
 
+class ExamFilter(django_filters.FilterSet):
+    # Using 'gte' and 'lte' lookups for precise time-range filtering
+    start_time = django_filters.DateTimeFilter(lookup_expr='gte')
+    end_time = django_filters.DateTimeFilter(lookup_expr='lte')
+    
+    class Meta:
+        model = Exams
+        fields = ['start_time', 'end_time']
+
 class CourseViewSet(ModelViewSet):
     queryset = models.Course.objects.all().order_by('id')
     serializer_class = serializer.CourseSerializer
@@ -175,17 +184,19 @@ class CourseViewSet(ModelViewSet):
     @action(methods=["GET"], detail=True)
     def exams(self,request, pk=None):
         course = get_object_or_404(self.get_queryset(), pk=pk)
+
         qs = Exams.objects.filter(course=course, status='a').annotate(
             question_count=Count('exam_questions', filter=~Q(exam_questions__status='i'), distinct=True)
         ).order_by('id')
 
-        start_time = request.query_params.get('start_time')
-        if start_time:
-            qs = qs.filter(start_time__gte=start_time)
+        filterset = ExamFilter(request.GET, queryset=qs)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+        qs = filterset.qs
 
-        end_time = request.query_params.get('end_time')
-        if end_time:
-            qs = qs.filter(end_time__lte=end_time)
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
 
         paginator = StudentsExamsPagination()
         page = paginator.paginate_queryset(qs, request)
