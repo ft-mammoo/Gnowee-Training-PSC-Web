@@ -84,18 +84,23 @@ class CourseViewSet(ModelViewSet):
             return Response(data=se.data, status=status.HTTP_200_OK)
             
         elif request.method == "POST":
+            teacher_id = request.data.get('teacher')
+
+            if not teacher_id:
+                return Response({"teacher": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+            assignment = models.CourseTeachers.all_objects.filter(course=course, teacher_id=teacher_id).first()
+
+            if assignment:
+                if assignment.status == 'a':
+                    return Response({"detail": "This teacher is already active in this course."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                assignment.status = 'a'
+                assignment.save()
+                se = serializer.CourseTeacherSerializer(assignment, context={'request': request})
+                return Response(data=se.data, status=status.HTTP_200_OK)
+            
             data = request.data.copy()
             data['course'] = pk
-            teacher_id = data.get('teacher')
-            if teacher_id and models.CourseTeachers.objects.filter(
-                course=course, 
-                teacher_id=teacher_id, 
-                status='a'
-            ).exists():
-                return Response(
-                    {"detail": "This teacher is already assigned to this course."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             se = serializer.CourseTeacherSerializer(data=data, context={'request': request})
             if se.is_valid():
                 se.save()
