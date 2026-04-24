@@ -255,7 +255,7 @@ class MaterialFilter(django_filters.FilterSet):
         fields = ['course', 'type', 'status', 'teacher', 'upload_date']
 
 class MaterialViewSet(ModelViewSet):
-    queryset = models.Material.objects.all().select_related('course', 'teacher').order_by('id')
+    queryset = models.Material.objects.all().select_related('course', 'teacher__user').order_by('id')
     pagination_class = MaterialPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = MaterialFilter
