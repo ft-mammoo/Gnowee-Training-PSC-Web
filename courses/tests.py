@@ -332,3 +332,42 @@ class CourseMaterialsTests(APITestCase):
         url = reverse('material-detail', kwargs={'pk': 9999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_patch_material_partial_success(self):
+        """Verify partial update of material title"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Original Title",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        payload = {"title": "Updated Title via PATCH"}
+        
+        response = self.client.patch(url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        material.refresh_from_db()
+        self.assertEqual(material.title, "Updated Title via PATCH")
+        # Ensure other fields remain unchanged
+        self.assertEqual(material.type, "d")
+
+    def test_patch_material_invalid_course(self):
+        """Edge Case: Ensure PATCH fails when providing an invalid course ID"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Update Fail Test",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        payload = {"course": 9999} # Invalid ID
+        
+        response = self.client.patch(url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('course', response.data)
+        material.refresh_from_db()
+        self.assertEqual(material.course.id, self.course.id) # Should still be original
