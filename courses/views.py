@@ -19,6 +19,13 @@ from utility.views import (
     StudentsAssignmentPagination, StudentsExamsPagination, MaterialPagination
 )
 
+class AssignmentFilter(django_filters.FilterSet):
+    due_date = django_filters.DateFilter(field_name='due_date', lookup_expr='date')
+
+    class Meta:
+        model = Assignment
+        fields = ['teacher', 'due_date']
+
 class CourseFilter(django_filters.FilterSet):
     class Meta:
         model = models.Course
@@ -105,7 +112,7 @@ class CourseViewSet(ModelViewSet):
             if not filterset.is_valid():
                 return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
             qs = filterset.qs
-            
+
             search = request.query_params.get('search')
             if search:
                 qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
@@ -130,16 +137,18 @@ class CourseViewSet(ModelViewSet):
     @action(methods=["GET", "POST"], detail=True)
     def assignments(self, request, pk=None):
         course = get_object_or_404(self.get_queryset(), pk=pk)
+
         if request.method == "GET":
-            qs = Assignment.objects.filter(course=course).select_related('teacher').order_by('id')
+            qs = Assignment.objects.filter(course=course).select_related('teacher__user').order_by('id')
             
-            due_date = request.query_params.get('due_date')
-            if due_date:
-                qs = qs.filter(due_date=due_date)
-            
-            teacher = request.query_params.get('teacher')
-            if teacher:
-                qs = qs.filter(teacher_id=teacher)
+            filterset = AssignmentFilter(request.GET, queryset=qs)
+            if not filterset.is_valid():
+                return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+            qs = filterset.qs
+
+            search = request.query_params.get('search')
+            if search:
+                qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
             
             paginator = StudentsAssignmentPagination()
             page = paginator.paginate_queryset(qs, request)
