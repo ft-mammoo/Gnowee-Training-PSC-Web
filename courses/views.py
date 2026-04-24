@@ -142,6 +142,16 @@ class CourseViewSet(ModelViewSet):
         elif request.method == "POST":
             data = request.data.copy()
             data['course'] = pk
+            teacher_id = data.get('teacher')
+            if teacher_id and not models.CourseTeachers.objects.filter(
+                course=course, 
+                teacher_id=teacher_id, 
+                status='a'
+            ).exists():
+                return Response(
+                    {"teacher": "Teacher must be actively assigned to this course to add materials."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             se = serializer.MaterialSerializer(data=data, context={'request': request})
             if se.is_valid():
                 se.save()
