@@ -100,21 +100,15 @@ class CourseViewSet(ModelViewSet):
         course = get_object_or_404(self.get_queryset(), pk=pk)
 
         if request.method == "GET":
-            qs = models.Material.objects.filter(course=course).select_related('teacher').order_by('id')
-            m_type = request.query_params.get('type')
-            if m_type:
-                qs = qs.filter(type=m_type)
+            qs = models.Material.objects.filter(course=course).select_related('teacher__user').order_by('id')
+            filterset = MaterialFilter(request.GET, queryset=qs)
+            if not filterset.is_valid():
+                return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+            qs = filterset.qs
             
-            status_param = request.query_params.get('status')
-            if status_param:
-                qs = qs.filter(status=status_param)
             search = request.query_params.get('search')
             if search:
                 qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
-
-            upload_date = request.query_params.get('upload_date')
-            if upload_date:
-                qs = qs.filter(uploaded_at=upload_date)
 
             paginator = BaseViewPagination()
             page = paginator.paginate_queryset(qs, request)
