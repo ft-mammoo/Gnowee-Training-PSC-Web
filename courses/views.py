@@ -15,7 +15,7 @@ from staffs.models import Teacher
 from staffs.serializer import TeacherNameSerializer
 from students.models import Student, Enrollment
 from utility.views import (
-    BaseViewPagination, CourseStatsPagination, CourseStudentsPagination,
+    BaseViewPagination, CourseStatsPagination, CourseStudentsPagination, CourseTeachersPagination,
     StudentsAssignmentPagination, StudentsExamsPagination, MaterialPagination
 )
 
@@ -241,6 +241,7 @@ class CourseTeacherFilter(django_filters.FilterSet):
 class CourseTeacherViewSet(mixins.ListModelMixin, mixins.DestroyModelMixin, GenericViewSet):
     queryset = models.CourseTeachers.objects.all().select_related('course', 'teacher__user').order_by('id')
     serializer_class = serializer.CourseTeacherSerializer
+    pagination_class = CourseTeachersPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = CourseTeacherFilter
     ordering_fields = ['created_date']
