@@ -304,3 +304,31 @@ class CourseMaterialsTests(APITestCase):
         self.assertIn('course', response.data)
         # Verify no material was accidentally created
         self.assertEqual(Material.objects.count(), 0)
+
+    def test_get_material_detail_success(self):
+        """Verify material detail view with nested data and optimized SQL"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Detail Test Material",
+            file_url="http://example.com/detail.pdf",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        
+        # Should be exactly 1 query due to select_related in the ViewSet queryset
+        with self.assertNumQueries(1):
+            response = self.client.get(url)
+            
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], "Detail Test Material")
+        # Verify nested data is present (from MaterialListSerializer)
+        self.assertEqual(response.data['teacher']['id'], self.teacher.id)
+        self.assertEqual(response.data['course']['title'], self.course.title)
+
+    def test_get_material_detail_404(self):
+        """Verify 404 response for non-existent material ID"""
+        url = reverse('material-detail', kwargs={'pk': 9999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
