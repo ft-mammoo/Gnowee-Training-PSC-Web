@@ -432,3 +432,36 @@ class CourseTeacherManagementTests(APITestCase):
         # N+1 Check: Expect 1 Count query + 1 SELECT query with INNER JOINs
         # Without select_related, this would be 100+ queries!
         self.assertLessEqual(len(ctx), 3, "N+1 query detected in assignments list!")
+
+    def test_delete_assignment_success(self):
+        """Verify that deleting an assignment record works (204 No Content)"""
+        # Create a single assignment to delete
+        assignment = CourseTeachers.objects.create(
+            course=self.course, 
+            teacher=self.teacher, 
+            status='a'
+        )
+        url = reverse('course-teacher-detail', kwargs={'pk': assignment.pk})
+        
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CourseTeachers.objects.filter(id=assignment.id).exists())
+
+    def test_delete_assignment_404(self):
+        """Edge Case: Verify 404 when trying to delete a non-existent assignment"""
+        url = reverse('course-teacher-detail', kwargs={'pk': 9999})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_method_not_allowed_edge_cases(self):
+        """Edge Case: Verify that POST and PATCH are blocked by our Mixin choices"""
+        # 1. Try to POST (Create) to the global list
+        post_response = self.client.post(self.base_url, {"course": self.course.id, "teacher": self.teacher.id})
+        self.assertEqual(post_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # 2. Try to PATCH (Update) an existing assignment
+        assignment = CourseTeachers.objects.create(course=self.course, teacher=self.teacher, status='a')
+        detail_url = reverse('course-teacher-detail', kwargs={'pk': assignment.pk})
+        patch_response = self.client.patch(detail_url, {"status": "i"})
+        self.assertEqual(patch_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
