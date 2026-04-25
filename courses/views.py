@@ -97,7 +97,7 @@ class CourseViewSet(ModelViewSet):
 
             if not teacher_id:
                 return Response({"teacher": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
-            assignment = models.CourseTeachers.all_objects.filter(course=course, teacher_id=teacher_id).first()
+            assignment = models.CourseTeachers.all_objects.filter(course=course, teacher_id=teacher_id).select_related('teacher__user').first()
 
             if assignment:
                 if assignment.status == 'a':
