@@ -31,6 +31,14 @@ class CourseFilter(django_filters.FilterSet):
         model = models.Course
         fields = ['status', 'created_date']
 
+class StudentFilter(django_filters.FilterSet):
+    enrollment_status = django_filters.CharFilter(field_name='enrollments__status')
+    student_status = django_filters.CharFilter(field_name='status')
+
+    class Meta:
+        model = Student
+        fields = ['enrollment_status', 'student_status']
+
 class ExamFilter(django_filters.FilterSet):
     # Using 'gte' and 'lte' lookups for precise time-range filtering
     start_time = django_filters.DateTimeFilter(lookup_expr='gte')
@@ -58,21 +66,15 @@ class CourseViewSet(ModelViewSet):
             Prefetch('enrollments', queryset=enrollment_qs, to_attr='current_course_enrollment')
         ).distinct().order_by('id')
 
-        # 2. Filtering logic based on query parameters
-        e_status = request.query_params.get('enrollment_status')
-        if e_status:
-            qs = qs.filter(enrollments__status=e_status, enrollments__course=course)
-            
-        s_status = request.query_params.get('student_status')
-        if s_status:
-            qs = qs.filter(status=s_status)
+        filterset = StudentFilter(request.GET, queryset=qs)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+        qs = filterset.qs
 
-        # 3. Search functionality on first_name and last_name
         search = request.query_params.get('search')
         if search:
             qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
 
-        # 4. Pagination and serialization
         paginator = CourseStudentsPagination()
         page = paginator.paginate_queryset(qs, request)
         if page is not None:
@@ -80,6 +82,7 @@ class CourseViewSet(ModelViewSet):
             return paginator.get_paginated_response(se.data)
         se = serializer.StudentWithEnrollmentSerializer(qs, many=True, context={'request': request})
         return Response(data=se.data, status=status.HTTP_200_OK)
+
     @action(methods=["GET", "POST"], detail=True)
     def teachers(self, request, pk=None):
         course = get_object_or_404(self.get_queryset(), pk=pk)
