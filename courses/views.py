@@ -27,6 +27,8 @@ class AssignmentFilter(django_filters.FilterSet):
         fields = ['teacher', 'due_date']
 
 class CourseFilter(django_filters.FilterSet):
+    created_date = django_filters.DateFilter(field_name='created_date', lookup_expr='date')
+    
     class Meta:
         model = models.Course
         fields = ['status', 'created_date']
