@@ -292,3 +292,7 @@ class CourseTeacherViewSet(mixins.ListModelMixin, mixins.DestroyModelMixin, Gene
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = CourseTeacherFilter
     ordering_fields = ['created_date']
+
+    def perform_destroy(self, instance):
+        instance.status = 'i'
+        instance.save()
