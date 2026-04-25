@@ -28,18 +28,17 @@ class AssignmentFilter(django_filters.FilterSet):
 
 class CourseFilter(django_filters.FilterSet):
     created_date = django_filters.DateFilter(field_name='created_date', lookup_expr='date')
-    
+
     class Meta:
         model = models.Course
         fields = ['status', 'created_date']
 
 class StudentFilter(django_filters.FilterSet):
-    enrollment_status = django_filters.CharFilter(field_name='enrollments__status')
     student_status = django_filters.CharFilter(field_name='status')
 
     class Meta:
         model = Student
-        fields = ['enrollment_status', 'student_status']
+        fields = ['student_status']
 
 class ExamFilter(django_filters.FilterSet):
     # Using 'gte' and 'lte' lookups for precise time-range filtering
@@ -67,6 +66,10 @@ class CourseViewSet(ModelViewSet):
         qs = Student.objects.filter(enrollments__course=course).select_related('user').prefetch_related(
             Prefetch('enrollments', queryset=enrollment_qs, to_attr='current_course_enrollment')
         ).distinct().order_by('id')
+
+        e_status = request.query_params.get('enrollment_status')
+        if e_status:
+            qs = qs.filter(enrollments__status=e_status, enrollments__course=course)
 
         filterset = StudentFilter(request.GET, queryset=qs)
         if not filterset.is_valid():
