@@ -34,7 +34,9 @@ class MaterialSerializer(BaseSerializer):
 class MaterialListSerializer(BaseSerializer):
     teacher = TeacherNameSerializer(read_only=True)
     course = CourseMinimalSerializer(read_only=True)
-    upload_date = serializers.DateField(source='uploaded_at', read_only=True)
+    upload_date = serializers.DateTimeField(source='uploaded_at', read_only=True)
+    type = serializers.CharField(source='get_type_display', read_only=True)
+    status = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = models.Material
@@ -42,7 +44,9 @@ class MaterialListSerializer(BaseSerializer):
 
 class MaterialNestedSerializer(BaseSerializer):
     teacher = TeacherNameSerializer(read_only=True)
-    upload_date = serializers.DateField(source='uploaded_at', read_only=True)
+    upload_date = serializers.DateTimeField(source='uploaded_at', read_only=True)
+    type = serializers.CharField(source='get_type_display', read_only=True)
+    status = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta(BaseSerializer.Meta):
         model = models.Material
