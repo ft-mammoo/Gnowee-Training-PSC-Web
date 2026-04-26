@@ -1,161 +1,298 @@
 import django_filters
-from rest_framework.decorators import api_view, action
-from rest_framework.views import APIView
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.viewsets import ModelViewSet,GenericViewSet
-from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin
+from django.db.models import Prefetch, Q, Count
+from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, mixins
+
+from assessments.models import Assignment, Exams
+from assessments.serializer import AssignmentSerializer, AssignmentNestedSerializer, ExamsSerializer, ExamNestedSerializer
 from courses import models, serializer
-from students.models import Student
-from students.serializer import StudentSerializer
-from utility.views import BaseViewPagination
+from staffs.models import Teacher
+from staffs.serializer import TeacherNameSerializer
+from students.models import Student, Enrollment
+from utility.views import (
+    BaseViewPagination, CourseStatsPagination, CourseStudentsPagination, CourseTeachersPagination,
+    StudentsAssignmentPagination, StudentsExamsPagination, MaterialPagination
+)
 
-# Function-based views for Course model
-@api_view(["GET", "POST"])
-def course_view(req):
-    if req.method == "GET":
-        qs = models.Course.objects.all()
-        se = serializer.CourseSerializer(qs, many=True)
-        return Response(data=se.data, status=status.HTTP_200_OK)
-    elif req.method == "POST":
-        se = serializer.CourseSerializer(data=req.data)
-        if not se.is_valid():
-            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
-        se.save()
-        return Response(data=se.data, status=status.HTTP_201_CREATED)
+class AssignmentFilter(django_filters.FilterSet):
+    due_date = django_filters.DateFilter(field_name='due_date', lookup_expr='date')
 
-@api_view(["GET", "PUT", "PATCH", "DELETE"])
-def course_detail_view(req, pk):
-    if req.method == "GET":
-        try:
-            course = models.Course.objects.get(pk=pk)
-            se = serializer.CourseSerializer(course)
-            return Response(data=se.data, status=status.HTTP_200_OK)
-        except models.Course.DoesNotExist:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    elif req.method == "PUT":
-        try:
-            course = models.Course.objects.get(pk=pk)
-            se = serializer.CourseSerializer(course, data=req.data)
-            if not se.is_valid():
-                return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
-            se.save()
-            return Response(data=se.data, status=status.HTTP_200_OK)
-        except models.Course.DoesNotExist:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    elif req.method == "PATCH":
-        try:
-            course = models.Course.objects.get(pk=pk)
-            se = serializer.CourseSerializer(course, data=req.data, partial=True)
-            if not se.is_valid():
-                return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
-            se.save()
-            return Response(data=se.data, status=status.HTTP_200_OK)
-        except models.Course.DoesNotExist:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-    elif req.method == "DELETE":
-        try:
-            course = models.Course.objects.get(pk=pk)
-            course.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except models.Course.DoesNotExist:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-@api_view(["GET"])
-def course_actions_view(req, pk, action):
-    if action == "students":
-        qs = Student.objects.filter(courses__id=pk)
-        se = StudentSerializer(qs, many=True)
-        return Response(data=se.data, status=status.HTTP_200_OK)
+    class Meta:
+        model = Assignment
+        fields = ['teacher', 'due_date']
 
-# Class-based views for Course model
-class CourseView(APIView):
-    def get(self, req):
-        qs = models.Course.objects.all()
-        se = serializer.CourseSerializer(qs, many=True)
-        return Response(data=se.data, status=status.HTTP_200_OK)
-
-    def post(self, req):
-        se = serializer.CourseSerializer(data=req.data)
-        if not se.is_valid():
-            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
-        se.save()
-        return Response(data=se.data, status=status.HTTP_201_CREATED)
-class CourseDetailedView(APIView):
-    def get_object(self, pk):
-        try:
-            return models.Course.objects.get(pk=pk)
-        except models.Course.DoesNotExist:
-            return None
-
-    def get(self, req, pk):
-        course = self.get_object(pk)
-        if not course:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        se = serializer.CourseSerializer(course)
-        return Response(data=se.data, status=status.HTTP_200_OK)
-
-    def put(self, req, pk):
-        course = self.get_object(pk)
-        if not course:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        se = serializer.CourseSerializer(course, data=req.data)
-        if not se.is_valid():
-            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
-        se.save()
-        return Response(data=se.data, status=status.HTTP_200_OK)
-
-    def patch(self, req, pk):
-        course = self.get_object(pk)
-        if not course:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        se = serializer.CourseSerializer(course, data=req.data, partial=True)
-        if not se.is_valid():
-            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
-        se.save()
-        return Response(data=se.data, status=status.HTTP_200_OK)
-
-    def delete(self, req, pk):
-        course = self.get_object(pk)
-        if not course:
-            return Response(data={"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        course.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-class CourseActionsView(APIView):
-    def get(self, req, pk, action):
-        if action == "students":
-            qs = Student.objects.filter(courses__id=pk)
-            se = StudentSerializer(qs, many=True)
-            return Response(data=se.data, status=status.HTTP_200_OK)
-class CourseGenericView(ListCreateAPIView):
-    queryset = models.Course.objects.all()
-    serializer_class = serializer.CourseSerializer
-class CourseDetailGenericView(RetrieveUpdateDestroyAPIView):
-    queryset = models.Course.objects.all()
-    serializer_class = serializer.CourseSerializer
 class CourseFilter(django_filters.FilterSet):
-    title = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
-    description = django_filters.CharFilter(field_name="description", lookup_expr="icontains")
+    created_date = django_filters.DateFilter(field_name='created_date', lookup_expr='date')
+
     class Meta:
         model = models.Course
-        fields = ("id", "title", "description", "status")
+        fields = ['status', 'created_date']
+
+class StudentFilter(django_filters.FilterSet):
+    student_status = django_filters.CharFilter(field_name='status')
+
+    class Meta:
+        model = Student
+        fields = ['student_status']
+
+class ExamFilter(django_filters.FilterSet):
+    # Using 'gte' and 'lte' lookups for precise time-range filtering
+    start_time = django_filters.DateTimeFilter(lookup_expr='gte')
+    end_time = django_filters.DateTimeFilter(lookup_expr='lte')
+
+    class Meta:
+        model = Exams
+        fields = ['start_time', 'end_time']
+
 class CourseViewSet(ModelViewSet):
-    queryset = models.Course.objects.all()
+    queryset = models.Course.objects.all().order_by('id')
     serializer_class = serializer.CourseSerializer
-    filterset_class = CourseFilter
     pagination_class = BaseViewPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = CourseFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['title', 'created_date']
     @action(methods=["GET"], detail=True)
-    def students(self, req, pk):
-        qs = Student.objects.filter(enrollments__course__id=pk)
-        se = StudentSerializer(qs, many=True)
-        return Response(data=se.data, status=status.HTTP_200_OK)
-class CourseMixinViewSet(ListModelMixin, RetrieveModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin, GenericViewSet):
-    queryset = models.Course.objects.all()
-    serializer_class = serializer.CourseSerializer
-    @action(methods=["GET"], detail=True)
-    def students(self, req, pk):
-        qs = Student.objects.filter(enrollments__course__id=pk)
-        se = StudentSerializer(qs, many=True)
+    def students(self, request, pk=None):
+        course = get_object_or_404(self.get_queryset(), pk=pk)
+
+        # We prefetch enrollments for this course to avoid N+1 queries when accessing enrollment data in the serializer
+        enrollment_qs = Enrollment.all_objects.filter(course=course)
+        qs = Student.objects.filter(enrollments__course=course).select_related('user').prefetch_related(
+            Prefetch('enrollments', queryset=enrollment_qs, to_attr='current_course_enrollment')
+        ).distinct().order_by('id')
+
+        e_status = request.query_params.get('enrollment_status')
+        if e_status:
+            qs = qs.filter(enrollments__status=e_status, enrollments__course=course)
+
+        filterset = StudentFilter(request.GET, queryset=qs)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+        qs = filterset.qs
+
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
+
+        paginator = CourseStudentsPagination()
+        page = paginator.paginate_queryset(qs, request)
+        if page is not None:
+            se = serializer.StudentWithEnrollmentSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(se.data)
+        se = serializer.StudentWithEnrollmentSerializer(qs, many=True, context={'request': request})
         return Response(data=se.data, status=status.HTTP_200_OK)
 
+    @action(methods=["GET", "POST"], detail=True)
+    def teachers(self, request, pk=None):
+        course = get_object_or_404(self.get_queryset(), pk=pk)
+
+        if request.method == "GET":
+            qs = models.CourseTeachers.objects.filter(
+                course=course, 
+                status='a'
+            ).select_related('teacher__user').distinct().order_by('id')
+            se = serializer.CourseTeacherMinimalSerializer(qs, many=True, context={'request': request})
+            return Response(data=se.data, status=status.HTTP_200_OK)
+            
+        elif request.method == "POST":
+            teacher_id = request.data.get('teacher')
+
+            if not teacher_id:
+                return Response({"teacher": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+            assignment = models.CourseTeachers.all_objects.filter(course=course, teacher_id=teacher_id).select_related('teacher__user').first()
+
+            if assignment:
+                if assignment.status == 'a':
+                    return Response({"detail": "This teacher is already active in this course."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                assignment.status = 'a'
+                assignment.save()
+                se = serializer.CourseTeacherSerializer(assignment, context={'request': request})
+                return Response(data=se.data, status=status.HTTP_200_OK)
+            
+            data = request.data.copy()
+            data['course'] = pk
+            se = serializer.CourseTeacherSerializer(data=data, context={'request': request})
+            if se.is_valid():
+                se.save()
+                return Response(data=se.data, status=status.HTTP_201_CREATED)
+            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(methods=["GET", "POST"], detail=True)
+    def materials(self, request, pk=None):
+        course = get_object_or_404(self.get_queryset(), pk=pk)
+
+        if request.method == "GET":
+            qs = models.Material.objects.filter(course=course).select_related('teacher__user').order_by('id')
+            filterset = MaterialFilter(request.GET, queryset=qs)
+            if not filterset.is_valid():
+                return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+            qs = filterset.qs
+
+            search = request.query_params.get('search')
+            if search:
+                qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+
+            paginator = BaseViewPagination()
+            page = paginator.paginate_queryset(qs, request)
+            if page is not None:
+                se = serializer.MaterialNestedSerializer(page, many=True, context={'request': request})
+                return paginator.get_paginated_response(se.data)
+            se = serializer.MaterialNestedSerializer(qs, many=True, context={'request': request})
+            return Response(data=se.data, status=status.HTTP_200_OK)
+
+        elif request.method == "POST":
+            data = request.data.copy()
+            data['course'] = pk
+            teacher_id = data.get('teacher')
+            if teacher_id and not models.CourseTeachers.objects.filter(
+                course=course, 
+                teacher_id=teacher_id, 
+                status='a'
+            ).exists():
+                return Response(
+                    {"teacher": "Teacher must be actively assigned to this course to add materials."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            se = serializer.MaterialSerializer(data=data, context={'request': request})
+            if se.is_valid():
+                se.save()
+                return Response(data=se.data, status=status.HTTP_201_CREATED)
+            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(methods=["GET", "POST"], detail=True)
+    def assignments(self, request, pk=None):
+        course = get_object_or_404(self.get_queryset(), pk=pk)
+
+        if request.method == "GET":
+            qs = Assignment.objects.filter(course=course).select_related('teacher__user').order_by('id')
+            
+            filterset = AssignmentFilter(request.GET, queryset=qs)
+            if not filterset.is_valid():
+                return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+            qs = filterset.qs
+
+            search = request.query_params.get('search')
+            if search:
+                qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+            
+            paginator = StudentsAssignmentPagination()
+            page = paginator.paginate_queryset(qs, request)
+            if page is not None:
+                se = AssignmentNestedSerializer(page, many=True, context={'request': request})
+                return paginator.get_paginated_response(se.data)
+            se = AssignmentNestedSerializer(qs, many=True, context={'request': request})
+            return Response(data=se.data, status=status.HTTP_200_OK)
+        
+        elif request.method == "POST":
+            data = request.data.copy()
+            data['course']=pk
+            teacher_id = data.get('teacher')
+            if teacher_id and not models.CourseTeachers.objects.filter(
+                course=course, 
+                teacher_id=teacher_id, 
+                status='a'
+            ).exists():
+                return Response(
+                    {"teacher": "Teacher must be actively assigned to this course to create assignments."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            se = AssignmentSerializer(data=data, context={'request': request})
+            if se.is_valid():
+                se.save()
+                return Response(data=se.data, status=status.HTTP_201_CREATED)
+            return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(methods=["GET"], detail=True)
+    def exams(self,request, pk=None):
+        course = get_object_or_404(self.get_queryset(), pk=pk)
+
+        qs = Exams.objects.filter(course=course, status='a').annotate(
+            question_count=Count('exam_questions', filter=~Q(exam_questions__status='i'), distinct=True)
+        ).order_by('id')
+
+        filterset = ExamFilter(request.GET, queryset=qs)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+        qs = filterset.qs
+
+        search = request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
+
+        paginator = StudentsExamsPagination()
+        page = paginator.paginate_queryset(qs, request)
+        if page is not None:
+            se = ExamNestedSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(se.data)
+        se = ExamNestedSerializer(qs, many=True, context={'request': request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
+    
+    @action(methods=["GET"], detail=False, url_path='with-stats')
+    def with_stats(self, request):
+        qs = models.Course.objects.annotate(
+            total_students=Count('enrollments', filter=~Q(enrollments__status='i'), distinct=True),
+            active_students=Count('enrollments', filter=Q(enrollments__status='a'), distinct=True),
+            total_teachers=Count('course_teachers', filter=~Q(course_teachers__status='i'), distinct=True),
+            total_materials=Count('materials', filter=~Q(materials__status='i'), distinct=True),
+            total_assignments=Count('assignments', filter=~Q(assignments__status='i'), distinct=True)
+        ).order_by('id')
+
+        stat_status = request.query_params.get('status')
+        if stat_status:
+            qs = qs.filter(status=stat_status)
+
+        paginator = CourseStatsPagination()
+        page = paginator.paginate_queryset(qs, request)
+        if page is not None:
+            se = serializer.CourseStatsSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(se.data)
+        se = serializer.CourseStatsSerializer(qs, many=True, context={'request': request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
+
+class MaterialFilter(django_filters.FilterSet):
+    upload_date = django_filters.DateFilter(field_name='uploaded_at', lookup_expr='date')
+    class Meta:
+        model = models.Material
+        fields = ['course', 'type', 'status', 'teacher', 'upload_date']
+
+class MaterialViewSet(ModelViewSet):
+    queryset = models.Material.objects.all().select_related('course', 'teacher__user').order_by('id')
+    pagination_class = MaterialPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = MaterialFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['title', 'uploaded_at']
+    
+    def get_serializer_class(self):
+        if self.action in ['list', 'retrieve']:
+            return serializer.MaterialListSerializer
+        return serializer.MaterialSerializer
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'request': self.request})
+        return context
+
+class CourseTeacherFilter(django_filters.FilterSet):
+    class Meta:
+        model = models.CourseTeachers
+        fields = ['course', 'teacher', 'status']
+
+class CourseTeacherViewSet(mixins.ListModelMixin, mixins.DestroyModelMixin, GenericViewSet):
+    queryset = models.CourseTeachers.objects.all().select_related('course', 'teacher__user').order_by('id')
+    serializer_class = serializer.CourseTeacherSerializer
+    pagination_class = CourseTeachersPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = CourseTeacherFilter
+    ordering_fields = ['created_date']
+
+    def perform_destroy(self, instance):
+        instance.status = 'i'
+        instance.save()

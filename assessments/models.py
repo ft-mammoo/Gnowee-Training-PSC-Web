@@ -5,7 +5,7 @@ from utility.models import BaseModel, SoftDeleteModel
 User = get_user_model()
 
 class Assignment(SoftDeleteModel):
-    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
+    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, related_name='assignments')
     teacher = models.ForeignKey('staffs.Teacher', on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)

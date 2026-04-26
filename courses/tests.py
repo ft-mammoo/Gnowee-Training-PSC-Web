@@ -1,459 +1,467 @@
-from datetime import date
-from django.test import TestCase
-from django.contrib.auth import get_user_model
-from courses import models
-from staffs.models import Teacher
-from courses import serializer
+import uuid
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from rest_framework.test import APITestCase
-from rest_framework import status
+from django.contrib.auth import get_user_model
+from datetime import date
+
+from courses.models import Course, CourseTeachers
+from staffs.models import Teacher
+from students.models import Student, Enrollment
 
 User = get_user_model()
 
-class CourseTest(TestCase):
+# --- 2.1 TESTS ---
+class CourseAPITests(APITestCase):
     def setUp(self):
-        # Create a test admin
-        self.admin = User.objects.create_user(username='TestAdmin', password='1234')
-    
-    def test_signal(self):
-        c1 = models.Course.objects.create(
-            title='Physics 101',
-            description='',
-            status='d',
-            created_by=self.admin,
-            updated_by=self.admin
+        # Initial data for testing
+        self.course = Course.objects.create(
+            title="Django API Mastery",
+            description="Professional REST API development",
+            status="p"
         )
+        self.list_url = reverse('course-list')
+        self.detail_url = reverse('course-detail', kwargs={'pk': self.course.pk})
 
-        # Update the course to trigger post-save signal for update
-        c1.title = 'Advanced Physics 101'
-        c1.description = 'Advanced concepts in Physics.'
-        c1.save()
-
-class CourseSerializerTest(TestCase):
-    def setUp(self):        
-        self.c1 = models.Course.objects.create(
-            title='Chemistry 101',
-            description='Basic concepts in Chemistry.',
-            status='d',
-        )
-    def test_course_serializer(self):
-        se = serializer.CourseSerializer(self.c1)
-        print(se.data)
-        self.assertEqual(se.data['title'], 'Chemistry 101')
-
-    def test_create(self):
-        data = {
-            'title': 'Biology 101',
-            'description': 'Introduction to Biology.',
-            'status': 'd',
-        }
-        se = serializer.CourseSerializer(data=data)
-        self.assertTrue(se.is_valid(), se.errors)
-        course = se.save()
-        self.assertEqual(course.title, 'Biology 101')
-        print(se.data)
-
-    def test_update(self):
-        change = {
-            'title': 'Chemistry 102',
-            'description': 'Updated concepts in Chemistry.',
-            'status': 'p',
-        }
-        se = serializer.CourseSerializer(self.c1, data = change, partial = True)
-        self.assertTrue(se.is_valid(), se.errors)
-        course = se.save()
-        self.assertEqual(course.title, 'Chemistry 102')
-        print(se.data)
-
-    def test_listing(self):
-        c2 = models.Course.objects.create(
-            title='Mathematics 101',
-            description='Basic concepts in Mathematics.',
-            status='d',
-        )
-        c3 = models.Course.objects.create(
-            title='History 101',
-            description='World History Overview.',
-            status='d',
-        )
-        c4 = models.Course.objects.create(
-            title='Geography 101',
-            description='Introduction to Geography.',
-            status='d',
-        )
-        c5 = models.Course.objects.create(
-            title='English 101',
-            description='Basic English Language Skills.',
-            status='d',
-        )
-
-        qs = models.Course.objects.all()
-        with CaptureQueriesContext(connection=connection) as ctx:
-            se = serializer.CourseSerializer(qs, many=True)
-            print(se.data)
-        print(ctx.captured_queries)
-        self.assertLessEqual(len(ctx.captured_queries), 5) 
-
-class CourseTeachersSerializerTest(TestCase):
-    def setUp(self):        
-        self.u1 = User.objects.create_user(username='TeacherUser', password='teach123')
-        self.t1 = Teacher.objects.create(
-            user=self.u1,
-            first_name='John',
-            last_name='Doe',            
-            dob=date(1984, 1, 1),
-            gender='m',
-            employee_code='1234',
-            experience_years=10,
-            contact_number='1234567890', 
-            emergency_contact_number='9876543210',
-            email_institutional='2GK5V@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        self.c1 = models.Course.objects.create(
-            title='Philosophy 101',
-            description='Introduction to Philosophy.',
-            status='d',
-        )
-        self.ct1 = models.CourseTeachers.objects.create(
-            course=self.c1,
-            teacher=self.t1,
-            status='a',
-        )
-    def test_course_teacher_serializer(self):
-        se = serializer.CourseTeacherSerializer(self.ct1)
-        print(se.data)
-        self.assertEqual(se.data['course'], self.c1.id)
-        self.assertEqual(se.data['teacher'], self.t1.id)
-
-    def test_create(self):
-        u2 = User.objects.create_user(username='TeacherUser2', password='teach1234')
-        t2 = Teacher.objects.create(
-            user=u2,
-            first_name='Jane',
-            last_name='Smith',            
-            dob=date(1990, 2, 2),
-            gender='f',
-            employee_code='5678',
-            experience_years=5,
-            contact_number='2345678901', 
-            emergency_contact_number='8765432109',
-            email_institutional='HcMl7@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        c2 = models.Course.objects.create(
-            title='Sociology 101',
-            description='Basics of Sociology.',
-            status='a',
-        )
-        data = {
-            'course': c2.id,
-            'teacher': t2.id,
-            'status': 'a',
-        }
-        se = serializer.CourseTeacherSerializer(data=data)
-        self.assertTrue(se.is_valid(), se.errors)
-        course_teacher = se.save()
-        self.assertEqual(course_teacher.course.id, c2.id)
-        print(se.data)
-
-    def test_update(self):
-        change = {
-            'status': 'i',
-        }
-        se = serializer.CourseTeacherSerializer(self.ct1, data = change, partial = True)
-        self.assertTrue(se.is_valid(), se.errors)
-        course_teacher = se.save()
-        self.assertEqual(course_teacher.status, 'i')
-        print(se.data)
-
-    def test_listing(self):
-        u3 = User.objects.create_user(username='TeacherUser3', password='teach12345')
-        u4 = User.objects.create_user(username='TeacherUser4', password='teach123456')
-        t3 = Teacher.objects.create(
-            user=u3,
-            first_name='Alice',
-            last_name='Johnson',            
-            dob=date(1988, 3, 3),
-            gender='f',
-            employee_code='6789',
-            experience_years=8,
-            contact_number='3456789012', 
-            emergency_contact_number='7654321098',
-            email_institutional='7oE6T@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        t4 = Teacher.objects.create(
-            user=u4,
-            first_name='Bob',
-            last_name='Brown',            
-            dob=date(1975, 4, 4),
-            gender='m',
-            employee_code='7890',
-            experience_years=15,
-            contact_number='4567890123', 
-            emergency_contact_number='6543210987',
-            email_institutional='q1w2@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        c2 = models.Course.objects.create(
-            title='Psychology 101',
-            description='Basics of Psychology.',
-            status='p',
-        )
-        c3 = models.Course.objects.create(
-            title='Economics 101',
-            description='Basics of Economics.',
-            status='p',
-        )
-        c4 = models.Course.objects.create(
-            title='Political Science 101',
-            description='Introduction to Political Science.',
-            status='a',
-        )
-        ct2 = models.CourseTeachers.objects.create(
-            course=c3,
-            teacher=t3,
-            status='a',
-        )
-        ct3 = models.CourseTeachers.objects.create(
-            course=self.c1,
-            teacher=t3,
-            status='a',
-        )
-        ct4 = models.CourseTeachers.objects.create(
-            course=c4,
-            teacher=t4,
-            status='a',
-        )
-        ct5 = models.CourseTeachers.objects.create(
-            course=c2,
-            teacher=self.t1,
-            status='a',
-        )
-        qs = models.CourseTeachers.objects.all()
-        with CaptureQueriesContext(connection=connection) as ctx:
-            se = serializer.CourseTeacherSerializer(qs, many=True)
-            print(se.data)
-        print(ctx.captured_queries)
-        self.assertLessEqual(len(ctx.captured_queries), 5)
-
-class MaterialSerializerTest(TestCase):
-    def setUp(self):        
-        self.u1 = User.objects.create_user(username='MaterialTeacher', password='matteach123')
-        self.t1 = Teacher.objects.create(
-            user=self.u1,
-            first_name='Laura',
-            last_name='Wilson',            
-            dob=date(1985, 5, 5),
-            gender='f',
-            employee_code='1234',
-            experience_years=10,
-            contact_number='1234567890', 
-            emergency_contact_number='9876543210',
-            email_institutional='2GK5V@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        self.c1 = models.Course.objects.create(
-            title='Art 101',
-            description='Introduction to Art.',
-            status='d',
-        )
-        self.m1 = models.Material.objects.create(
-            course=self.c1,
-            teacher=self.t1,
-            title='Art Basics',
-            description='Basic concepts of Art.',
-            file_url='http://example.com/art_basics.pdf',
-            type='d',
-            status='a',
-        )
-
-    def test_material_serializer(self):
-        se = serializer.MaterialSerializer(self.m1)
-        self.assertEqual(se.data['title'], 'Art Basics')
-        print(se.data)
-
-    def test_create(self):
-        u2 = User.objects.create_user(username='MaterialTeacher2', password='matteach1234')
-        t2 = Teacher.objects.create(
-            user=u2,
-            first_name='Mark',
-            last_name='Taylor',            
-            dob=date(1992, 6, 6),            
-            gender='m',            
-            employee_code='5678',
-            experience_years=8,
-            contact_number='2345678901', 
-            emergency_contact_number='8765432109',
-            email_institutional='HcMl7@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        c2 = models.Course.objects.create(
-            title='Music 101',
-            description='Introduction to Music.',
-            status='a',
-        )
-        data = {
-            'course': c2.id,
-            'teacher': t2.id,
-            'title': 'Music Basics',
-            'description': 'Basic concepts of Music.',
-            'file_url': 'http://example.com/music_basics.pdf',
-            'type': 'd',
-            'status': 'a',
-        }
-        se = serializer.MaterialSerializer(data=data)
-        self.assertTrue(se.is_valid(), se.errors)
-        material = se.save()
-        self.assertEqual(material.title, 'Music Basics')
-        print(se.data)
-
-    def test_update(self):
-        change = {
-            'title': 'Advanced Art Basics',
-            'description': 'Advanced concepts of Art.',
-            'status': 'i',
-        }
-        se = serializer.MaterialSerializer(self.m1, data = change, partial = True)
-        self.assertTrue(se.is_valid(), se.errors)
-        material = se.save()
-        self.assertEqual(material.title, 'Advanced Art Basics')
-        print(se.data)
-
-    def test_listing(self):
-        u3 = User.objects.create_user(username='MaterialTeacher3', password='matteach12345')
-        u4 = User.objects.create_user(username='MaterialTeacher4', password='matteach123456')
-        u5 = User.objects.create_user(username='MaterialTeacher5', password='matteach1234567')
-        t3 = Teacher.objects.create(
-            user=u3,
-            first_name='Emma',
-            last_name='Davis',            
-            dob=date(1987, 7, 7),            
-            gender='f',            
-            employee_code='6789',
-            experience_years=9,
-            contact_number='3456789012', 
-            emergency_contact_number='7654321098',
-            email_institutional='HcMl7@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        t4 = Teacher.objects.create(
-            user=u4,
-            first_name='Liam',
-            last_name='Garcia',            
-            dob=date(1978, 8, 8),            
-            gender='m',            
-            employee_code='7890',
-            experience_years=7,
-            contact_number='4567890123', 
-            emergency_contact_number='6543210987',
-            email_institutional='HcM7@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        t5 = Teacher.objects.create(
-            user=u5,
-            first_name='Olivia',
-            last_name='Martinez',            
-            dob=date(1995, 9, 9),            
-            gender='f',            
-            employee_code='8901',
-            experience_years=6,
-            contact_number='5678901234', 
-            emergency_contact_number='5432109876',
-            email_institutional='HcMl@example.com',
-            status='a', 
-            date_joined=date.today(),
-        )
-        c3 = models.Course.objects.create(
-            title='Drama 101',
-            description='Introduction to Drama.',
-            status='p',
-        )
-        c4 = models.Course.objects.create(
-            title='Dance 101',
-            description='Basics of Dance.',
-            status='a',
-        )
-        c5 = models.Course.objects.create(
-            title='Photography 101',
-            description='Basics of Photography.',
-            status='a',
-        )
-        m2 = models.Material.objects.create(
-            course=c3,
-            teacher=t3,
-            title='Drama Basics',
-            description='Basic concepts of Drama.',
-            file_url='http://example.com/drama_basics.pdf',
-            type='d',
-            status='a',
-        )
-        m3 = models.Material.objects.create(
-            course=self.c1,
-            teacher=t3,
-            title='Art History',
-            description='History of Art.',
-            file_url='http://example.com/art_history.pdf',
-            type='d',
-            status='a',
-        )
-        m4 = models.Material.objects.create(
-            course=c4,
-            teacher=t4,
-            title='Dance Moves',
-            description='Basic Dance Moves.',
-            file_url='http://example.com/dance_moves.pdf',
-            type='d',
-            status='a',
-        )
-        m5 = models.Material.objects.create(
-            course=c5,
-            teacher=t5,
-            title='Photography Techniques',
-            description='Basic Photography Techniques.',
-            file_url='http://example.com/photography_techniques.pdf',
-            type='d',
-            status='a',
-        )
-        qs = models.Material.objects.all()
-        with CaptureQueriesContext(connection=connection) as ctx:
-            se = serializer.MaterialSerializer(qs, many=True)
-            print(se.data)
-        print(ctx.captured_queries)
-        self.assertLessEqual(len(ctx.captured_queries), 5)
-
-class CourseViewTest(APITestCase):
-    def test_course_crud(self):
-        resp = self.client.post("/courses/courses/", {
-            "title": "Test Course",
-            "description": "This is a test course.",
-        }, format='json')
-        self.assertTrue(resp.status_code == status.HTTP_201_CREATED)
-
-        resp = self.client.get("/courses/courses/")
-        print(resp.data)
-        self.assertTrue(resp.status_code == status.HTTP_200_OK)
-        self.assertTrue(len(resp.data['results']) == 1)
-
-        resp = self.client.patch("/courses/courses/1/", {
-            "description": "Updated description.",
-        }, format='json')
-        resp = self.client.get("/courses/courses/1/")
-        print(resp.data)
-        self.assertTrue(resp.data['description'] == "Updated description.")
-        self.assertTrue(resp.status_code == status.HTTP_200_OK)
-
-        resp = self.client.delete("/courses/courses/1/")
-        self.assertTrue(resp.status_code == status.HTTP_204_NO_CONTENT)
+    def test_get_course_list(self):
+        """Test GET /courses/ returns list of courses"""
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         
+        # We check the 'count' key provided by the paginator
+        self.assertEqual(response.data['count'], 1)
+        
+        # We check the length of the 'results' list
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['title'], self.course.title)
 
+    def test_create_course(self):
+        """Test POST /courses/ creates a new course"""
+        data = {
+            "title": "React UI Engineering",
+            "description": "Modern frontend architecture",
+            "status": "p"
+        }
+        response = self.client.post(self.list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Course.objects.count(), 2)
+        self.assertEqual(Course.objects.last().title, "React UI Engineering")
+
+    def test_get_course_detail(self):
+        """Test GET /courses/{id}/ returns specific course"""
+        response = self.client.get(self.detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], self.course.title)
+
+    def test_update_course_full(self):
+        """Test PUT /courses/{id}/ updates all fields"""
+        data = {
+            "title": "Updated Title",
+            "description": "Updated Description",
+            "status": "a"
+        }
+        response = self.client.put(self.detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.title, "Updated Title")
+
+    def test_update_course_partial(self):
+        """Test PATCH /courses/{id}/ updates single field"""
+        data = {"title": "Partial Update"}
+        response = self.client.patch(self.detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.course.refresh_from_db()
+        self.assertEqual(self.course.title, "Partial Update")
+
+    def test_delete_course(self):
+        """Test DELETE /courses/{id}/ removes record"""
+        response = self.client.delete(self.detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Course.objects.count(), 0)
+
+
+# --- 2.2 TESTS (NESTED ENDPOINTS) ---
+class CourseNestedAPITests(APITestCase):
+    def setUp(self):
+        self.course = Course.objects.create(title="Backend Sprint", status="p")
+        self.user = User.objects.create_user(username="sofia_r", password="password123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            first_name="Sofia",
+            last_name="Rossi",
+            gender="f",
+            employee_code="EMP001",
+            experience_years=8,
+            email_institutional="sofia@edu.com",
+            status="a",
+            date_joined=date.today()
+        )
+        self.teachers_url = reverse('course-teachers', kwargs={'pk': self.course.pk})
+
+    def test_get_teachers_sql_performance(self):
+        """Test GET /courses/{id}/teachers/ and print SQL queries to catch N+1"""
+        # Create 3 links to check if queries scale with data size (N+1 check)
+        CourseTeachers.objects.create(course=self.course, teacher=self.teacher, status='a')
+        
+        print(f"\n--- SQL Queries for GET {self.teachers_url} ---")
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(self.teachers_url)
+            
+            for i, query in enumerate(ctx.captured_queries, 1):
+                print(f"Query {i}: {query['sql']}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertLessEqual(len(ctx), 3, "Potential N+1 query detected!")
+
+    def test_post_teacher_assignment(self):
+        """Test POST /courses/{id}/teachers/ link creation"""
+        payload = {"teacher": self.teacher.id, "status": "a"}
+        response = self.client.post(self.teachers_url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(CourseTeachers.objects.filter(course=self.course, teacher=self.teacher).exists())
+
+# --- 2.2 STUDENTS NESTED ENDPOINT TESTS ---
+class CourseStudentsNestedTests(APITestCase):
+    def setUp(self):
+        unique_suffix = str(uuid.uuid4())[:8]
+        self.course = Course.objects.create(title=f"Backend Sprint {unique_suffix}", status="p")
+        self.user = User.objects.create_user(username=f"sofia_{unique_suffix}", password="password123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            first_name="Sofia",
+            last_name="Rossi",
+            gender="f",
+            employee_code=f"EMP_{unique_suffix}",
+            experience_years=8,
+            email_institutional=f"sofia_{unique_suffix}@edu.com",
+            status="a",
+            date_joined=date.today()
+        )
+        self.teachers_url = reverse('course-teachers', kwargs={'pk': self.course.pk})
+        
+        # Requirement: pagination_size=30
+        # We create 35 students to verify that only 30 appear per page
+        for i in range(35):
+            s_user = User.objects.create_user(username=f"student_{i}", password="password123")
+            student = Student.objects.create(
+                user=s_user,
+                first_name=f"First_{i}",
+                last_name=f"Last_{i}",
+                date_of_birth="2000-01-01",
+                gender='m',
+                contact_number="1234567890",
+                emergency_contact_name="Emergency Name",
+                emergency_contact_number="0987654321",
+                date_joined=date.today()
+            )
+            # Link each student to this specific course
+            Enrollment.objects.create(student=student, course=self.course, status='a')
+
+        self.students_url = reverse('course-students', kwargs={'pk': self.course.pk})
+
+    def test_get_students_structure_and_performance(self):
+        """Verify optimized query count and nested JSON structure"""
+        print(f"\n--- SQL Queries for Students Endpoint ---")
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(self.students_url)
+            
+            for i, query in enumerate(ctx.captured_queries, 1):
+                print(f"Query {i}: {query['sql']}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify pagination: should be 30 results on page 1
+        self.assertEqual(len(response.data['results']), 30)
+        self.assertEqual(response.data['count'], 35)
+
+        # Verify nested enrollment structure matches documentation
+        # Example: {"id": 1, ..., "enrollment": {"id": 12, "status": "a", ...}}
+        first_student = response.data['results'][0]
+        self.assertIn('enrollment', first_student)
+        self.assertIn('enrollment_date', first_student['enrollment'])
+        
+        # Verify N+1 check: Expect ~3-4 queries (Course, Students, Prefetched Enrollments)
+        self.assertLessEqual(len(ctx), 4, "High query count detected! Check Prefetch logic.")
+
+    def test_students_search_logic(self):
+        """Verify search: first_name, last_name"""
+        # Search for the 10th student by last name
+        url = f"{self.students_url}?search=10"
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only find the student with "Last_10"
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['last_name'], "Last_10")
+
+from courses.models import Material
+
+class CourseMaterialsTests(APITestCase):
+    def setUp(self):
+        self.unique_suffix = str(uuid.uuid4())[:8]
+        
+        # Setup Course and Teacher
+        self.course = Course.objects.create(title=f"Global Course {self.unique_suffix}", status='p')
+        self.user = User.objects.create_user(username=f"staff_{self.unique_suffix}", password="p123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            employee_code=f"E_{self.unique_suffix}",
+            email_institutional=f"staff_{self.unique_suffix}@edu.com",
+            status='a'
+        )
+        
+        self.materials_url = reverse('material-list')
+
+    def test_get_materials_performance_and_pagination(self):
+        # Create 35 materials (should trigger 2 pages since page_size=30)
+        materials = [
+            Material(
+                course=self.course,
+                teacher=self.teacher,
+                title=f"Material {i}",
+                file_url=f"http://example.com/file{i}.pdf",
+                type="d",
+                status="a"
+            ) for i in range(35)
+        ]
+        Material.objects.bulk_create(materials)
+
+        print(f"\n--- SQL Queries for Global GET {self.materials_url} ---")
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(self.materials_url)
+            
+            for i, query in enumerate(ctx.captured_queries, 1):
+                print(f"Query {i}: {query['sql']}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify Pagination: Page 1 should have exactly 30 results
+        self.assertEqual(len(response.data['results']), 30)
+        self.assertEqual(response.data['count'], 35)
+
+        # Verify SQL: Expect ~2-3 queries (1 for Count, 1 for Data with JOINS)
+        # Without select_related, this would be 30+ queries.
+        self.assertLessEqual(len(ctx), 3, "N+1 query detected on top-level materials list!")
+
+    def test_material_search_and_filters(self):
+        # Create a specific material to find
+        target = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Unique Target Title",
+            description="Find me",
+            type="v",
+            status="a"
+        )
+        
+        # Test Search
+        response = self.client.get(f"{self.materials_url}?search=Unique")
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], target.id)
+        
+        # Test Filter (type)
+        response = self.client.get(f"{self.materials_url}?type=v")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(response.data['results']) > 0)
+        self.assertEqual(response.data['results'][0]['type'], "v")
+
+    def test_post_material_success(self):
+        """Verify successful material creation and file_url handling"""
+        payload = {
+            "course": self.course.id,
+            "teacher": self.teacher.id,
+            "title": "New Lecture Slides",
+            "description": "Introduction to DRF",
+            "file_url": "http://example.com/slides.pdf",
+            "type": "s",
+            "status": "a"
+        }
+        
+        # We expect exactly 2 for FK validation + 1 for INSERT
+        with self.assertNumQueries(3): # Adjust number based on your specific validation logic
+            response = self.client.post(self.materials_url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Material.objects.count(), 1)
+        self.assertEqual(response.data['title'], "New Lecture Slides")
+
+    def test_post_material_invalid_course(self):
+        """Edge Case: Ensure creation fails with a non-existent course ID"""
+        payload = {
+            "course": 9999, # Non-existent ID
+            "teacher": self.teacher.id,
+            "title": "Ghost Material",
+            "file_url": "http://example.com/ghost.pdf",
+            "type": "d",
+            "status": "a"
+        }
+        response = self.client.post(self.materials_url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('course', response.data)
+        # Verify no material was accidentally created
+        self.assertEqual(Material.objects.count(), 0)
+
+    def test_get_material_detail_success(self):
+        """Verify material detail view with nested data and optimized SQL"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Detail Test Material",
+            file_url="http://example.com/detail.pdf",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        
+        # Should be exactly 1 query due to select_related in the ViewSet queryset
+        with self.assertNumQueries(1):
+            response = self.client.get(url)
+            
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['title'], "Detail Test Material")
+        # Verify nested data is present (from MaterialListSerializer)
+        self.assertEqual(response.data['teacher']['id'], self.teacher.id)
+        self.assertEqual(response.data['course']['title'], self.course.title)
+
+    def test_get_material_detail_404(self):
+        """Verify 404 response for non-existent material ID"""
+        url = reverse('material-detail', kwargs={'pk': 9999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_patch_material_partial_success(self):
+        """Verify partial update of material title"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Original Title",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        payload = {"title": "Updated Title via PATCH"}
+        
+        response = self.client.patch(url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        material.refresh_from_db()
+        self.assertEqual(material.title, "Updated Title via PATCH")
+        # Ensure other fields remain unchanged
+        self.assertEqual(material.type, "d")
+
+    def test_patch_material_invalid_course(self):
+        """Edge Case: Ensure PATCH fails when providing an invalid course ID"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Update Fail Test",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        payload = {"course": 9999} # Invalid ID
+        
+        response = self.client.patch(url, payload)
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('course', response.data)
+        material.refresh_from_db()
+        self.assertEqual(material.course.id, self.course.id) # Should still be original
+
+    def test_delete_material_success(self):
+        """Verify successful deletion of a material"""
+        material = Material.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Delete Me",
+            type="d",
+            status="a"
+        )
+        url = reverse('material-detail', kwargs={'pk': material.pk})
+        
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Material.objects.count(), 0)
+
+    def test_delete_material_404(self):
+        """Verify 404 when trying to delete a non-existent material"""
+        url = reverse('material-detail', kwargs={'pk': 9999})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+class CourseTeacherManagementTests(APITestCase):
+    def setUp(self):
+        self.unique_suffix = str(uuid.uuid4())[:8]
+        # Setup Course and Teacher for the test
+        self.course = Course.objects.create(title=f"Mgmt Course {self.unique_suffix}", status='p')
+        self.user = User.objects.create_user(username=f"admin_staff_{self.unique_suffix}", password="p123")
+        self.teacher = Teacher.objects.create(
+            user=self.user,
+            employee_code=f"E_MGMT_{self.unique_suffix}",
+            email_institutional=f"admin_{self.unique_suffix}@edu.com",
+            status='a'
+        )
+        self.base_url = reverse('course-teacher-list')
+
+    def test_list_assignments_performance_and_pagination(self):
+        """Verify optimized SQL (joins) and pagination of 50"""
+        # Create 55 assignments to trigger pagination
+        # We need unique courses for each assignment to test join scaling
+        for i in range(55):
+            c = Course.objects.create(title=f"Bulk Course {i}_{self.unique_suffix}", status='p')
+            CourseTeachers.objects.create(course=c, teacher=self.teacher, status='a')
+
+        print(f"\n--- SQL Queries for Global Course-Teacher List ---")
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(self.base_url)
+            
+            for i, query in enumerate(ctx.captured_queries, 1):
+                print(f"Query {i}: {query['sql']}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify Pagination
+        self.assertEqual(len(response.data['results']), 50) # Page size limit
+        self.assertEqual(response.data['count'], 55)
+
+        # N+1 Check: Expect 1 Count query + 1 SELECT query with INNER JOINs
+        # Without select_related, this would be 100+ queries!
+        self.assertLessEqual(len(ctx), 3, "N+1 query detected in assignments list!")
+
+    def test_delete_assignment_success(self):
+        """Verify that deleting an assignment record works (204 No Content)"""
+        # Create a single assignment to delete
+        assignment = CourseTeachers.objects.create(
+            course=self.course, 
+            teacher=self.teacher, 
+            status='a'
+        )
+        url = reverse('course-teacher-detail', kwargs={'pk': assignment.pk})
+        
+        response = self.client.delete(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CourseTeachers.objects.filter(id=assignment.id).exists())
+
+    def test_delete_assignment_404(self):
+        """Edge Case: Verify 404 when trying to delete a non-existent assignment"""
+        url = reverse('course-teacher-detail', kwargs={'pk': 9999})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_method_not_allowed_edge_cases(self):
+        """Edge Case: Verify that POST and PATCH are blocked by our Mixin choices"""
+        # 1. Try to POST (Create) to the global list
+        post_response = self.client.post(self.base_url, {"course": self.course.id, "teacher": self.teacher.id})
+        self.assertEqual(post_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # 2. Try to PATCH (Update) an existing assignment
+        assignment = CourseTeachers.objects.create(course=self.course, teacher=self.teacher, status='a')
+        detail_url = reverse('course-teacher-detail', kwargs={'pk': assignment.pk})
+        patch_response = self.client.patch(detail_url, {"status": "i"})
+        self.assertEqual(patch_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)

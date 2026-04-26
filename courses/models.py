@@ -23,6 +23,15 @@ class CourseTeachers(SoftDeleteModel):
     teacher = models.ForeignKey('staffs.Teacher', on_delete=models.CASCADE, related_name='teacher_courses')
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='a')
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['course', 'teacher'], 
+                condition=~models.Q(status='i'), 
+                name='unique_active_course_teacher'
+            )
+        ]
+
     def __str__(self):
         return f"Course {self.course_id} - Teacher {self.teacher_id}"
 
@@ -38,7 +47,7 @@ class Material(SoftDeleteModel):
         ('i', 'Inactive'),
     )
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='materials')
-    teacher = models.ForeignKey('staffs.Teacher', on_delete=models.CASCADE, related_name='materials')
+    teacher = models.ForeignKey('staffs.Teacher', on_delete=models.CASCADE, related_name='uploaded_materials')
     title = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
     file_url = models.CharField(max_length=255)
