@@ -1,7 +1,24 @@
+from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from staffs import models
 from utility.serializer import BaseSerializer
 
-class TeacherModelSerializer(BaseSerializer):
+class TeacherSerializer(BaseSerializer):
+
+    employee_code = serializers.CharField(
+        validators=[UniqueValidator(
+            queryset=models.Teacher.objects.all(), 
+            message="teacher with this employee code already exists."
+        )]
+    )
+
+    email_institutional = serializers.CharField(
+        validators=[UniqueValidator(
+            queryset=models.Teacher.objects.all(), 
+            message="teacher with this email institutional already exists."
+        )]
+    )
+
     class Meta(BaseSerializer.Meta):
         model = models.Teacher
         fields = '__all__'
