@@ -1,5 +1,5 @@
 import django_filters
-from .models import Teacher
+from .models import Teacher, Department
 from assessments.models import Assignment
 from courses.models import Material, Course
 
@@ -28,4 +28,9 @@ class TeacherAssignmentFilter(django_filters.FilterSet):
 class TeacherWorkloadFilter(django_filters.FilterSet):
     class Meta:
         model = Teacher
+        fields = ['status']
+
+class DepartmentFilter(django_filters.FilterSet):
+    class Meta:
+        model = Department
         fields = ['status']

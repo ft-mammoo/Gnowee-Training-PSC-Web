@@ -4,6 +4,7 @@ from staffs import views
 
 router = SimpleRouter()
 router.register('teachers', views.TeacherViewSet, basename='teacher')
+router.register('departments', views.DepartmentViewSet, basename='department')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -98,7 +98,7 @@ class UserSpecializationSerializer(BaseSerializer):
         model = models.UserSpecialization
         fields = '__all__'
 
-class DepartmentModelSerializer(BaseSerializer):
+class DepartmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Department
         fields = '__all__'

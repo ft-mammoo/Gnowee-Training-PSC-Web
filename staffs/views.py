@@ -6,13 +6,19 @@ from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerFiel
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Teacher
-from .serializer import TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer, TeacherAssignmentSerializer, TeacherWorkloadSerializer
-from .filters import TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter, TeacherAssignmentFilter, TeacherWorkloadFilter
+from .models import Teacher, Department
+from .serializer import (
+    TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer,
+    TeacherAssignmentSerializer, TeacherWorkloadSerializer, DepartmentSerializer
+)
+from .filters import (
+    TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter,
+    TeacherAssignmentFilter, TeacherWorkloadFilter, DepartmentFilter
+)
 from assessments.models import Assignment, Submission
 from courses.models import Course, CourseTeachers, Material
 from students.models import Enrollment
-from utility.views import TeacherPagination, TeacherMaterialPagination
+from utility.views import TeacherPagination, TeacherMaterialPagination, DepartmentPagination
 
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
@@ -144,3 +150,13 @@ class TeacherViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = TeacherWorkloadSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
+    
+class DepartmentViewSet(viewsets.ModelViewSet):
+    queryset = Department.objects.all().order_by('-id')
+    serializer_class = DepartmentSerializer
+    pagination_class = DepartmentPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = DepartmentFilter
+
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'created_date']
