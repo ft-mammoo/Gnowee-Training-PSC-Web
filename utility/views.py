@@ -28,3 +28,6 @@ class CourseTeachersPagination(BaseViewPagination):
 
 class TeacherPagination(BaseViewPagination):
     page_size = 20
+
+class TeacherMaterialPagination(BaseViewPagination):
+    page_size = 25

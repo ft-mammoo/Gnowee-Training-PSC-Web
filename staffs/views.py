@@ -1,17 +1,146 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.response import Response
+from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerField
+from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Teacher
-from .serializer import TeacherSerializer
-from .filters import TeacherFilter
-from utility.views import TeacherPagination
+from .serializer import TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer, TeacherAssignmentSerializer, TeacherWorkloadSerializer
+from .filters import TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter, TeacherAssignmentFilter, TeacherWorkloadFilter
+from assessments.models import Assignment, Submission
+from courses.models import Course, CourseTeachers, Material
+from students.models import Enrollment
+from utility.views import TeacherPagination, TeacherMaterialPagination
 
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
     serializer_class = TeacherSerializer
-    pagination_class = TeacherPagination
+    pagination_class = TeacherPagination #20 per page
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TeacherFilter
     search_fields = ['first_name', 'last_name', 'employee_code', 'email_institutional']
     ordering_fields = ['first_name', 'last_name', 'employee_code']
+
+    @action(detail=True, methods=['get'])
+    def courses(self, request, pk=None):
+        teacher = self.get_object()
+
+        # explicitly prefetching ONLY the CourseTeachers row that links to this specific teacher.
+        # assign it to 'teacher_assignment' so my serializer can grab it instantly without hitting the DB again.
+        teacher_assignment_qs = Prefetch(
+            'course_teachers',
+            queryset=CourseTeachers.objects.filter(teacher=teacher),
+            to_attr='teacher_assignments'
+        )
+
+        # querying the Course table backwards through the join table.
+        # using .annotate() to count active enrollments directly in PostgreSQL/SQLite.
+        queryset = Course.objects.filter(course_teachers__teacher=teacher).annotate(
+            student_count=Count(
+                'enrollments',
+                filter=~Q(enrollments__status='i'),
+                distinct=True
+            )
+        ).prefetch_related(teacher_assignment_qs).order_by('-id')
+
+        filterset = TeacherCourseFilter(request.query_params, queryset=queryset)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=400)
+        queryset = filterset.qs
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = TeacherCourseListSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        serializer = TeacherCourseListSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def materials(self, request, pk=None):
+        teacher = self.get_object()
+        queryset = Material.objects.filter(teacher=teacher).order_by('-id')
+
+        filterset = TeacherMaterialFilter(request.query_params, queryset=queryset)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=400)
+        queryset = filterset.qs
+
+        paginator = TeacherMaterialPagination() #25 per page
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        if page is not None:
+            serializer = TeacherMaterialSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+        serializer = TeacherMaterialSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def assignments(self, request, pk=None):
+        teacher = self.get_object()
+        queryset = Assignment.objects.filter(teacher=teacher).order_by('-id')
+
+        filterset = TeacherAssignmentFilter(request.query_params, queryset=queryset)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=400)
+        queryset = filterset.qs
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = TeacherAssignmentSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        serializer = TeacherAssignmentSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='with-workload')
+    def with_workload(self, request):
+
+        # subquery to count active courses for each teacher
+        course_sq = CourseTeachers.objects.filter(
+            teacher=OuterRef('pk')
+        ).exclude(status='i').values('teacher').annotate(
+            count=Count('id', distinct=True)
+        ).values('count')
+
+        # subquery to count distinct students across all active courses for each teacher
+        student_sq = Enrollment.objects.filter(
+            course__course_teachers__teacher=OuterRef('pk'),
+            course__course_teachers__status='a'
+        ).exclude(status='i').values('course__course_teachers__teacher').annotate(
+            count=Count('student', distinct=True)
+        ).values('count')
+
+        # subquery to count assignments for each teacher
+        assignments_sq = Assignment.objects.filter(
+            teacher=OuterRef('pk')
+        ).exclude(status='i').values('teacher').annotate(
+            count=Count('id', distinct=True)
+        ).values('count')
+
+        # subquery to count pending submissions for each teacher
+        pending_sq = Submission.objects.filter(
+            assignment__teacher=OuterRef('pk'),
+            status__in=['s', 'l']
+        ).exclude(status='i').values('assignment__teacher').annotate(
+            count=Count('id', distinct=True)
+        ).values('count')
+
+        # using Coalesce to return 0 instead of None when there are no related records
+        queryset = Teacher.objects.exclude(status='i').annotate(
+            total_courses=Coalesce(Subquery(course_sq, output_field=IntegerField()), 0),
+            total_students=Coalesce(Subquery(student_sq, output_field=IntegerField()), 0),
+            total_assignments=Coalesce(Subquery(assignments_sq, output_field=IntegerField()), 0),
+            pending_submissions=Coalesce(Subquery(pending_sq, output_field=IntegerField()), 0)
+        ).order_by('-id')
+
+        filterset = TeacherWorkloadFilter(request.query_params, queryset=queryset)
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=400)
+        queryset = filterset.qs
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = TeacherWorkloadSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        serializer = TeacherWorkloadSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
