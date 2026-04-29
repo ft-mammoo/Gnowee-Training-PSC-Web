@@ -103,7 +103,7 @@ class DepartmentSerializer(BaseSerializer):
         model = models.Department
         fields = '__all__'
 
-class UserDepartmentModelSerializer(BaseSerializer):
+class UserDepartmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserDepartment
         fields = '__all__'

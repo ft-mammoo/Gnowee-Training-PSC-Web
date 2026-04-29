@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
@@ -6,10 +6,11 @@ from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerFiel
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Teacher, Department
+from .models import Teacher, Department, UserDepartment
 from .serializer import (
     TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer,
-    TeacherAssignmentSerializer, TeacherWorkloadSerializer, DepartmentSerializer
+    TeacherAssignmentSerializer, TeacherWorkloadSerializer, DepartmentSerializer,
+    UserDepartmentSerializer, TeacherMinimalSerializer
 )
 from .filters import (
     TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter,
@@ -160,3 +161,55 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_date']
+
+    @action(detail=True, methods=['get', 'post'])
+    def teachers(self, request, pk=None):
+        department = self.get_object()
+
+        if request.method == 'GET':
+            # filtering teachers who are actively linked to this department through the UserDepartment join table, and also ensuring the teacher themselves are active.
+            queryset = Teacher.objects.filter(
+                user__userdepartment__department=department,
+                user__userdepartment__status='a',
+                status='a'
+            ).select_related('user').order_by('-id')
+
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = TeacherMinimalSerializer(page, many=True, context={'request': request})
+                return self.get_paginated_response(serializer.data)
+            serializer = TeacherMinimalSerializer(queryset, many=True, context={'request': request})
+            return Response(serializer.data)
+        
+        elif request.method == 'POST':
+
+            user_id = request.data.get('user')
+            if not user_id:
+                return Response({"user": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # check if the user is already active in this department
+            mapping = UserDepartment.all_objects.filter(
+                department=department,
+                user_id=user_id
+            ).first()
+            if mapping:
+                # if the user is already active, return an error
+                if mapping.status == 'a':
+                    return Response(
+                        {"detail": "This user is already active in this department."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # if the user is inactive, make them active
+                mapping.status = 'a'
+                mapping.save()
+                serializer = UserDepartmentSerializer(mapping, context={'request': request})
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            # if the user is not already active in this department, create a new record
+            data = request.data.copy()
+            data['department'] = department.id
+
+            serializer = UserDepartmentSerializer(data=data, context={'request': request})
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
