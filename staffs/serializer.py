@@ -78,12 +78,12 @@ class TeacherNameSerializer(BaseSerializer):
         model = models.Teacher
         fields = ['id', 'first_name', 'last_name']
 
-class QualificationModelSerializer(BaseSerializer):
+class QualificationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Qualification
         fields = '__all__'
 
-class UserQualificationModelSerializer(BaseSerializer):
+class UserQualificationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserQualification
         fields = '__all__'

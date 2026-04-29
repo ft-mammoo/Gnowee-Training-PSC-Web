@@ -34,3 +34,9 @@ class TeacherMaterialPagination(BaseViewPagination):
 
 class DepartmentPagination(BaseViewPagination):
     page_size = 30
+
+class QualificationPagination(BaseViewPagination):
+    page_size = 20
+
+class UserQualificationPagination(BaseViewPagination):
+    page_size = 50

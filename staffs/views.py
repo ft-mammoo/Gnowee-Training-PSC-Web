@@ -6,20 +6,25 @@ from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerFiel
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Teacher, Department, UserDepartment
+from .models import Teacher, Department, UserDepartment, Qualification, UserQualification
 from .serializer import (
     TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer,
     TeacherAssignmentSerializer, TeacherWorkloadSerializer, DepartmentSerializer,
-    UserDepartmentSerializer, TeacherMinimalSerializer
+    UserDepartmentSerializer, TeacherMinimalSerializer, QualificationSerializer,
+    UserQualificationSerializer
 )
 from .filters import (
     TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter,
-    TeacherAssignmentFilter, TeacherWorkloadFilter, DepartmentFilter
+    TeacherAssignmentFilter, TeacherWorkloadFilter, DepartmentFilter,
+    QualificationFilter, UserQualificationFilter
 )
 from assessments.models import Assignment, Submission
 from courses.models import Course, CourseTeachers, Material
 from students.models import Enrollment
-from utility.views import TeacherPagination, TeacherMaterialPagination, DepartmentPagination
+from utility.views import (
+    TeacherPagination, TeacherMaterialPagination, DepartmentPagination,
+    QualificationPagination, UserQualificationPagination
+)
 
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
@@ -213,3 +218,22 @@ class DepartmentViewSet(viewsets.ModelViewSet):
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+class QualificationViewSet(viewsets.ModelViewSet):
+    queryset = Qualification.objects.all().order_by('-id')
+    serializer_class = QualificationSerializer
+    pagination_class = QualificationPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = QualificationFilter
+
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_date']
+
+class UserQualificationViewSet(viewsets.ModelViewSet):
+    queryset = UserQualification.objects.all().select_related('user', 'qualification').order_by('-id')
+    serializer_class = UserQualificationSerializer
+    pagination_class = UserQualificationPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = UserQualificationFilter
+
+    ordering_fields = ['user', 'qualification', 'created_date']
