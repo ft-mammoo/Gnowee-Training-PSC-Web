@@ -237,7 +237,10 @@ class QualificationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_date']
 
 class UserQualificationViewSet(viewsets.ModelViewSet):
-    queryset = UserQualification.objects.all().select_related('user', 'qualification').order_by('-id')
+    # exclude inactive qualifications
+    queryset = UserQualification.objects.exclude(
+        qualification__status='i'
+    ).select_related('user', 'qualification').order_by('-id')
     serializer_class = UserQualificationSerializer
     pagination_class = UserQualificationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -256,7 +259,10 @@ class SpecializationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_date']
 
 class UserSpecializationViewSet(viewsets.ModelViewSet):
-    queryset = UserSpecialization.objects.all().select_related('user', 'specialization').order_by('-id')
+    # exclude inactive specializations
+    queryset = UserSpecialization.objects.exclude(
+        specialization__status='i'
+    ).select_related('user', 'specialization').order_by('-id')
     serializer_class = UserSpecializationSerializer
     pagination_class = UserSpecializationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -275,7 +281,10 @@ class DesignationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['designation_name', 'created_date']
 
 class UserDesignationViewSet(viewsets.ModelViewSet):
-    queryset = UserDesignation.objects.all().select_related('user', 'designation').order_by('-id')
+    # exclude inactive designations
+    queryset = UserDesignation.objects.exclude(
+        designation__status='i'
+    ).select_related('user', 'designation').order_by('-id')
     serializer_class = UserDesignationSerializer
     pagination_class = UserDesignationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
