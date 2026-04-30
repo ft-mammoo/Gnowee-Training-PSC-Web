@@ -9,19 +9,20 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     Teacher, Department, UserDepartment,
     Qualification, UserQualification, Specialization,
-    UserSpecialization
+    UserSpecialization, Designation, UserDesignation
 )
 from .serializer import (
     TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer,
     TeacherAssignmentSerializer, TeacherWorkloadSerializer, DepartmentSerializer,
     UserDepartmentSerializer, TeacherMinimalSerializer, QualificationSerializer,
-    UserQualificationSerializer, SpecializationSerializer, UserSpecializationSerializer
+    UserQualificationSerializer, SpecializationSerializer, UserSpecializationSerializer,
+    DesignationSerializer, UserDesignationSerializer
 )
 from .filters import (
     TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter,
     TeacherAssignmentFilter, TeacherWorkloadFilter, DepartmentFilter,
     QualificationFilter, UserQualificationFilter, SpecializationFilter,
-    UserSpecializationFilter
+    UserSpecializationFilter, DesignationFilter, UserDesignationFilter
 )
 from assessments.models import Assignment, Submission
 from courses.models import Course, CourseTeachers, Material
@@ -29,7 +30,7 @@ from students.models import Enrollment
 from utility.views import (
     TeacherPagination, TeacherMaterialPagination, DepartmentPagination,
     QualificationPagination, UserQualificationPagination, SpecializationPagination,
-    UserSpecializationPagination
+    UserSpecializationPagination, DesignationPagination, UserDesignationPagination
 )
 
 class TeacherViewSet(viewsets.ModelViewSet):
@@ -262,3 +263,22 @@ class UserSpecializationViewSet(viewsets.ModelViewSet):
     filterset_class = UserSpecializationFilter
 
     ordering_fields = ['user', 'specialization', 'created_date']
+
+class DesignationViewSet(viewsets.ModelViewSet):
+    queryset = Designation.objects.all().order_by('-id')
+    serializer_class = DesignationSerializer
+    pagination_class = DesignationPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = DesignationFilter
+
+    search_fields = ['designation_name']
+    ordering_fields = ['designation_name', 'created_date']
+
+class UserDesignationViewSet(viewsets.ModelViewSet):
+    queryset = UserDesignation.objects.all().select_related('user', 'designation').order_by('-id')
+    serializer_class = UserDesignationSerializer
+    pagination_class = UserDesignationPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = UserDesignationFilter
+
+    ordering_fields = ['user', 'designation', 'created_date']

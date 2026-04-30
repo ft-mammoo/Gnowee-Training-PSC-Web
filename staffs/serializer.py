@@ -108,12 +108,12 @@ class UserDepartmentSerializer(BaseSerializer):
         model = models.UserDepartment
         fields = '__all__'
 
-class DesignationModelSerializer(BaseSerializer):
+class DesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Designation
         fields = '__all__'
 
-class UserDesignationModelSerializer(BaseSerializer):
+class UserDesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserDesignation
         fields = '__all__'

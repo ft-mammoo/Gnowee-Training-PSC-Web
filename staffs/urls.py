@@ -9,6 +9,8 @@ router.register('qualifications', views.QualificationViewSet, basename='qualific
 router.register('user-qualifications', views.UserQualificationViewSet, basename='user-qualification')
 router.register('specializations', views.SpecializationViewSet, basename='specialization')
 router.register('user-specializations', views.UserSpecializationViewSet, basename='user-specialization')
+router.register('designations', views.DesignationViewSet, basename='designation')
+router.register('user-designations', views.UserDesignationViewSet, basename='user-designation')
 
 urlpatterns = [
     path('', include(router.urls)),
