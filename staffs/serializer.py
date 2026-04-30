@@ -87,6 +87,11 @@ class UserQualificationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserQualification
         fields = '__all__'
+    # active teacher validation
+    def validate_user(self, value):
+        if not models.Teacher.objects.filter(user=value, status='a').exists():
+            raise serializers.ValidationError("This user is not registered as an active teacher.")
+        return value
 
 class SpecializationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -97,6 +102,11 @@ class UserSpecializationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserSpecialization
         fields = '__all__'
+    # active teacher validation
+    def validate_user(self, value):
+        if not models.Teacher.objects.filter(user=value, status='a').exists():
+            raise serializers.ValidationError("This user is not registered as an active teacher.")
+        return value
 
 class DepartmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -107,6 +117,11 @@ class UserDepartmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserDepartment
         fields = '__all__'
+    # active teacher validation
+    def validate_user(self, value):
+        if not models.Teacher.objects.filter(user=value, status='a').exists():
+            raise serializers.ValidationError("This user is not registered as an active teacher.")
+        return value
 
 class DesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -117,3 +132,8 @@ class UserDesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserDesignation
         fields = '__all__'
+    # active teacher validation
+    def validate_user(self, value):
+        if not models.Teacher.objects.filter(user=value, status='a').exists():
+            raise serializers.ValidationError("This user is not registered as an active teacher.")
+        return value
