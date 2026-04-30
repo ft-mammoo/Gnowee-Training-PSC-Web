@@ -23,14 +23,28 @@ class Teacher(SoftDeleteModel):
     last_name = models.CharField(max_length=100)
     dob = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
-    employee_code = models.CharField(max_length=50, unique=True)
+    employee_code = models.CharField(max_length=50)
     experience_years = models.PositiveIntegerField(default=0)
     contact_number = models.CharField(max_length=10, null=True, blank=True)
     emergency_contact_number = models.CharField(max_length=10, null=True, blank=True)
-    email_institutional = models.CharField(max_length=150, unique=True) 
+    email_institutional = models.CharField(max_length=150) 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
     profile_picture = models.CharField(max_length=255, blank=True, null=True)
     date_joined = models.DateField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee_code'],
+                condition=~models.Q(status='i'),
+                name='unique_active_employee_code'
+            ),
+            models.UniqueConstraint(
+                fields=['email_institutional'],
+                condition=~models.Q(status='i'),
+                name='unique_active_email_institutional'
+            )
+        ]
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} - ({self.employee_code})"
