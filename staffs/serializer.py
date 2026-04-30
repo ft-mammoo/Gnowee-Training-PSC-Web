@@ -92,6 +92,12 @@ class UserQualificationSerializer(BaseSerializer):
         if not models.Teacher.objects.filter(user=value, status='a').exists():
             raise serializers.ValidationError("This user is not registered as an active teacher.")
         return value
+    
+    # active qualification validation
+    def validate_qualification(self, value):
+        if value.status != 'a':
+            raise serializers.ValidationError("Cannot assign to an inactive qualification.")
+        return value
 
 class SpecializationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -106,6 +112,12 @@ class UserSpecializationSerializer(BaseSerializer):
     def validate_user(self, value):
         if not models.Teacher.objects.filter(user=value, status='a').exists():
             raise serializers.ValidationError("This user is not registered as an active teacher.")
+        return value
+    
+    # active specialization validation
+    def validate_specialization(self, value):
+        if value.status != 'a':
+            raise serializers.ValidationError("Cannot assign to an inactive specialization.")
         return value
 
 class DepartmentSerializer(BaseSerializer):
@@ -122,6 +134,12 @@ class UserDepartmentSerializer(BaseSerializer):
         if not models.Teacher.objects.filter(user=value, status='a').exists():
             raise serializers.ValidationError("This user is not registered as an active teacher.")
         return value
+    
+    # active department validation
+    def validate_department(self, value):
+        if value.status != 'a':
+            raise serializers.ValidationError("Cannot assign to an inactive department.")
+        return value
 
 class DesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -136,4 +154,10 @@ class UserDesignationSerializer(BaseSerializer):
     def validate_user(self, value):
         if not models.Teacher.objects.filter(user=value, status='a').exists():
             raise serializers.ValidationError("This user is not registered as an active teacher.")
+        return value
+    
+    # active designation validation
+    def validate_designation(self, value):
+        if value.status != 'a':
+            raise serializers.ValidationError("Cannot assign to an inactive designation.")
         return value
