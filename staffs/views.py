@@ -6,24 +6,30 @@ from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerFiel
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Teacher, Department, UserDepartment, Qualification, UserQualification
+from .models import (
+    Teacher, Department, UserDepartment,
+    Qualification, UserQualification, Specialization,
+    UserSpecialization
+)
 from .serializer import (
     TeacherSerializer, TeacherCourseListSerializer, TeacherMaterialSerializer,
     TeacherAssignmentSerializer, TeacherWorkloadSerializer, DepartmentSerializer,
     UserDepartmentSerializer, TeacherMinimalSerializer, QualificationSerializer,
-    UserQualificationSerializer
+    UserQualificationSerializer, SpecializationSerializer, UserSpecializationSerializer
 )
 from .filters import (
     TeacherFilter, TeacherCourseFilter, TeacherMaterialFilter,
     TeacherAssignmentFilter, TeacherWorkloadFilter, DepartmentFilter,
-    QualificationFilter, UserQualificationFilter
+    QualificationFilter, UserQualificationFilter, SpecializationFilter,
+    UserSpecializationFilter
 )
 from assessments.models import Assignment, Submission
 from courses.models import Course, CourseTeachers, Material
 from students.models import Enrollment
 from utility.views import (
     TeacherPagination, TeacherMaterialPagination, DepartmentPagination,
-    QualificationPagination, UserQualificationPagination
+    QualificationPagination, UserQualificationPagination, SpecializationPagination,
+    UserSpecializationPagination
 )
 
 class TeacherViewSet(viewsets.ModelViewSet):
@@ -237,3 +243,22 @@ class UserQualificationViewSet(viewsets.ModelViewSet):
     filterset_class = UserQualificationFilter
 
     ordering_fields = ['user', 'qualification', 'created_date']
+
+class SpecializationViewSet(viewsets.ModelViewSet):
+    queryset = Specialization.objects.all().order_by('-id')
+    serializer_class = SpecializationSerializer
+    pagination_class = SpecializationPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = SpecializationFilter
+
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_date']
+
+class UserSpecializationViewSet(viewsets.ModelViewSet):
+    queryset = UserSpecialization.objects.all().select_related('user', 'specialization').order_by('-id')
+    serializer_class = UserSpecializationSerializer
+    pagination_class = UserSpecializationPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = UserSpecializationFilter
+
+    ordering_fields = ['user', 'specialization', 'created_date']

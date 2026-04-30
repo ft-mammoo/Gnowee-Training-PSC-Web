@@ -1,5 +1,5 @@
 import django_filters
-from .models import Teacher, Department, Qualification, UserQualification
+from .models import Teacher, Department, Qualification, UserQualification, Specialization, UserSpecialization
 from assessments.models import Assignment
 from courses.models import Material, Course
 
@@ -44,3 +44,13 @@ class UserQualificationFilter(django_filters.FilterSet):
     class Meta:
         model = UserQualification
         fields = ['user', 'qualification', 'status']
+
+class SpecializationFilter(django_filters.FilterSet):
+    class Meta:
+        model = Specialization
+        fields = ['status']
+
+class UserSpecializationFilter(django_filters.FilterSet):
+    class Meta:
+        model = UserSpecialization
+        fields = ['user', 'specialization', 'status']

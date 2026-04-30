@@ -40,3 +40,9 @@ class QualificationPagination(BaseViewPagination):
 
 class UserQualificationPagination(BaseViewPagination):
     page_size = 50
+
+class SpecializationPagination(BaseViewPagination):
+    page_size = 20
+
+class UserSpecializationPagination(BaseViewPagination):
+    page_size = 50
