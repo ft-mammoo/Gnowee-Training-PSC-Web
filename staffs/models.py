@@ -80,6 +80,13 @@ class UserQualification(SoftDeleteModel):
         indexes = [
             models.Index(fields=['user', 'status']),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'qualification'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_qualification'
+            )
+        ]
 
     def __str__(self):
         return f"User {self.user} - Qualification {self.qualification}"
@@ -111,6 +118,13 @@ class UserSpecialization(SoftDeleteModel):
     class Meta:
         indexes = [
             models.Index(fields=['user', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'specialization'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_specialization'
+            )
         ]
 
     def __str__(self):
@@ -144,6 +158,13 @@ class UserDepartment(SoftDeleteModel):
         indexes = [
             models.Index(fields=['user', 'status']),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'department'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_department'
+            )
+        ]
 
     def __str__(self):
         return f"User {self.user} - Department {self.department}"
@@ -175,6 +196,13 @@ class UserDesignation(SoftDeleteModel):
     class Meta:
         indexes = [
             models.Index(fields=['user', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'designation'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_designation'
+            )
         ]
 
     def __str__(self):
