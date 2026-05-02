@@ -26,6 +26,14 @@ class TeacherSerializer(BaseSerializer):
         model = models.Teacher
         fields = '__all__'
 
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=models.Teacher.objects.exclude(status='i'),
+                fields=['user'],
+                message="An active teacher profile already exists for this user."
+            )
+        ]
+
 class TeacherCourseListSerializer(BaseSerializer):
     assignment = serializers.SerializerMethodField()
     student_count = serializers.IntegerField(read_only=True)
