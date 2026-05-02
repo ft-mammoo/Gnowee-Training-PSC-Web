@@ -35,6 +35,12 @@ from utility.views import (
 )
 
 class TeacherViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing Teacher profiles and related academic metrics.
+    
+    Provides standard CRUD operations along with specialized actions for
+    retrieving course assignments, teaching materials, and workload analytics.
+    """
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
     serializer_class = TeacherSerializer
     pagination_class = TeacherPagination #20 per page
@@ -45,6 +51,12 @@ class TeacherViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def courses(self, request, pk=None):
+        """
+        Retrieves all courses assigned to a specific teacher.
+        
+        Uses Prefetch objects to minimize database hits for the join table
+        and annotates the student count directly in the query for performance.
+        """
         teacher = self.get_object()
 
         # explicitly prefetching ONLY the CourseTeachers row that links to this specific teacher.
@@ -79,6 +91,9 @@ class TeacherViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def materials(self, request, pk=None):
+        """
+        Returns all teaching materials uploaded by a specific teacher.
+        """
         teacher = self.get_object()
         queryset = Material.objects.filter(teacher=teacher).order_by('-id')
 
@@ -97,6 +112,9 @@ class TeacherViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def assignments(self, request, pk=None):
+        """
+        Lists all academic assignments created by a specific teacher.
+        """
         teacher = self.get_object()
         queryset = Assignment.objects.filter(teacher=teacher).order_by('-id')
 
@@ -114,6 +132,13 @@ class TeacherViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='with-workload')
     def with_workload(self, request):
+        """
+        Calculates high-level teaching metrics across all active staff.
+        
+        Aggregates data for active courses, distinct student reach, 
+        and pending grading tasks. Implements parent-state filtering to
+        ensure metrics exclude assignments linked to inactive courses.
+        """
 
         # subquery to count active courses for each teacher
         course_sq = CourseTeachers.objects.filter(
@@ -171,6 +196,9 @@ class TeacherViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 class DepartmentViewSet(viewsets.ModelViewSet):
+    """
+    Handles Department administration and Staff-to-Department assignments.
+    """
     queryset = Department.objects.all().order_by('-id')
     serializer_class = DepartmentSerializer
     pagination_class = DepartmentPagination
@@ -182,6 +210,9 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get', 'post'])
     def teachers(self, request, pk=None):
+        """
+        Manages the relationship between Teachers and Departments.
+        """
         department = self.get_object()
 
         if request.method == 'GET':
@@ -244,6 +275,9 @@ class DepartmentViewSet(viewsets.ModelViewSet):
                 )
 
 class QualificationViewSet(viewsets.ModelViewSet):
+    """
+    Manages the global list of professional qualifications.
+    """
     queryset = Qualification.objects.all().order_by('-id')
     serializer_class = QualificationSerializer
     pagination_class = QualificationPagination
@@ -254,6 +288,9 @@ class QualificationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_date']
 
 class UserQualificationViewSet(viewsets.ModelViewSet):
+    """
+    Manages user-specific qualification assignments.
+    """
     # exclude inactive qualifications
     queryset = UserQualification.objects.exclude(
         qualification__status='i'
@@ -266,6 +303,9 @@ class UserQualificationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['user', 'qualification', 'created_date']
 
 class SpecializationViewSet(viewsets.ModelViewSet):
+    """
+    Manages the global list of academic specializations.
+    """
     queryset = Specialization.objects.all().order_by('-id')
     serializer_class = SpecializationSerializer
     pagination_class = SpecializationPagination
@@ -276,6 +316,9 @@ class SpecializationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_date']
 
 class UserSpecializationViewSet(viewsets.ModelViewSet):
+    """
+    Manages user-specific specialization assignments.
+    """
     # exclude inactive specializations
     queryset = UserSpecialization.objects.exclude(
         specialization__status='i'
@@ -288,6 +331,9 @@ class UserSpecializationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['user', 'specialization', 'created_date']
 
 class DesignationViewSet(viewsets.ModelViewSet):
+    """
+    Manages the global list of job designations/titles.
+    """
     queryset = Designation.objects.all().order_by('-id')
     serializer_class = DesignationSerializer
     pagination_class = DesignationPagination
@@ -298,6 +344,9 @@ class DesignationViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_date']
 
 class UserDesignationViewSet(viewsets.ModelViewSet):
+    """
+    Manages user-specific job designation assignments.
+    """
     # exclude inactive designations
     queryset = UserDesignation.objects.exclude(
         designation__status='i'
