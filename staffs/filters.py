@@ -9,7 +9,7 @@ from courses.models import Material, Course
 
 class TeacherFilter(django_filters.FilterSet):
     # Define filters for the Teacher model
-    date_joined = django_filters.DateFilter(field_name='date_joined', lookup_expr='date')
+    date_joined = django_filters.DateFilter(field_name='date_joined', lookup_expr='exact')
     class Meta:
         model = Teacher
         fields = ['status', 'gender', 'experience_years', 'date_joined']
