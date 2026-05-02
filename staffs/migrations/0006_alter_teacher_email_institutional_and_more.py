@@ -3,6 +3,38 @@
 from django.conf import settings
 from django.db import migrations, models
 
+def resolve_teacher_duplicates(apps, schema_editor):
+    Teacher = apps.get_model('staffs', 'Teacher')
+    from django.db.models import Count
+
+    # Find and deactivate duplicate employee codes (keep the latest)
+    duplicate_codes = (
+        Teacher.objects.exclude(status='i')
+        .values('employee_code')
+        .annotate(count=Count('id'))
+        .filter(count__gt=1)
+        .values_list('employee_code', flat=True)
+    )
+    for code in duplicate_codes:
+        teachers = Teacher.objects.filter(employee_code=code).exclude(status='i').order_by('-id')
+        # Keep teachers[0], mark the rest as inactive
+        for teacher in teachers[1:]:
+            teacher.status = 'i'
+            teacher.save()
+
+    # Find and deactivate duplicate emails (keep the latest)
+    duplicate_emails = (
+        Teacher.objects.exclude(status='i')
+        .values('email_institutional')
+        .annotate(count=Count('id'))
+        .filter(count__gt=1)
+        .values_list('email_institutional', flat=True)
+    )
+    for email in duplicate_emails:
+        teachers = Teacher.objects.filter(email_institutional=email).exclude(status='i').order_by('-id')
+        for teacher in teachers[1:]:
+            teacher.status = 'i'
+            teacher.save()
 
 class Migration(migrations.Migration):
 
@@ -22,6 +54,7 @@ class Migration(migrations.Migration):
             name='employee_code',
             field=models.CharField(max_length=50),
         ),
+        migrations.RunPython(resolve_teacher_duplicates, reverse_code=migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name='teacher',
             constraint=models.UniqueConstraint(condition=models.Q(('status', 'i'), _negated=True), fields=('employee_code',), name='unique_active_employee_code'),
