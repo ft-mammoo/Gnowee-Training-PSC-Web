@@ -3,6 +3,39 @@
 from django.conf import settings
 from django.db import migrations, models
 
+def resolve_mapping_duplicates(apps, schema_editor):
+    from django.db.models import Count
+    
+    # List of models and their specific "parent" field to check
+    mapping_configs = [
+        ('UserDepartment', 'department'),
+        ('UserDesignation', 'designation'),
+        ('UserQualification', 'qualification'),
+        ('UserSpecialization', 'specialization'),
+    ]
+
+    for model_name, parent_field in mapping_configs:
+        Model = apps.get_model('staffs', model_name)
+        
+        # Find duplicates where (user, parent) has more than one active record
+        duplicates = (
+            Model.objects.exclude(status='i')
+            .values('user', parent_field)
+            .annotate(count=Count('id'))
+            .filter(count__gt=1)
+        )
+
+        for entry in duplicates:
+            # Keep the newest mapping, deactivate the others
+            filter_kwargs = {
+                'user_id': entry['user'],
+                f'{parent_field}_id': entry[parent_field]
+            }
+            mappings = Model.objects.filter(**filter_kwargs).exclude(status='i').order_by('-id')
+            
+            for duplicate in mappings[1:]:
+                duplicate.status = 'i'
+                duplicate.save(update_fields=['status'])
 
 class Migration(migrations.Migration):
 
@@ -12,6 +45,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(resolve_mapping_duplicates, reverse_code=migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name='userdepartment',
             constraint=models.UniqueConstraint(condition=models.Q(('status', 'i'), _negated=True), fields=('user', 'department'), name='unique_active_user_department'),
