@@ -35,6 +35,11 @@ class Teacher(SoftDeleteModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
+                fields=['user'],
+                condition=~models.Q(status='i'),
+                name='unique_active_teacher_user'
+            ),
+            models.UniqueConstraint(
                 fields=['employee_code'],
                 condition=~models.Q(status='i'),
                 name='unique_active_employee_code'
