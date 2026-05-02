@@ -218,9 +218,10 @@ class DepartmentViewSet(viewsets.ModelViewSet):
                                 status=status.HTTP_400_BAD_REQUEST
                             )
                         # Reactivate existing record safely
-                        mapping.status = 'a'
-                        mapping.save(update_fields=['status'])
-                        serializer = UserDepartmentSerializer(mapping, context={'request': request})
+                        # Use Serializer for reactivation to trigger validation and maintain consistency
+                        serializer = UserDepartmentSerializer(mapping, data={'status': 'a'}, partial=True, context={'request': request})
+                        serializer.is_valid(raise_exception=True)
+                        serializer.save()
                         return Response(serializer.data, status=status.HTTP_200_OK)
                     
                     # if the user is not already active in this department, create a new record
