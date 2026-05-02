@@ -10,14 +10,16 @@ class TeacherSerializer(BaseSerializer):
 
     employee_code = serializers.CharField(
         validators=[UniqueValidator(
-            queryset=models.Teacher.objects.all(), 
+            # Exclude inactive teachers from the uniqueness check
+            queryset=models.Teacher.objects.exclude(status='i'), 
             message="teacher with this employee code already exists."
         )]
     )
 
     email_institutional = serializers.CharField(
         validators=[UniqueValidator(
-            queryset=models.Teacher.objects.all(), 
+            # Exclude inactive teachers from the uniqueness check
+            queryset=models.Teacher.objects.exclude(status='i'), 
             message="teacher with this email institutional already exists."
         )]
     )
