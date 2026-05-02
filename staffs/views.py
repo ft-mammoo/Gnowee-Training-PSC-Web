@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerField
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
@@ -199,33 +200,43 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             if not user_id:
                 return Response({"user": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
             
-            # check if the user is already active in this department
-            mapping = UserDepartment.all_objects.filter(
-                department=department,
-                user_id=user_id
-            ).first()
-            if mapping:
-                # if the user is already active, return an error
-                if mapping.status == 'a':
-                    return Response(
-                        {"detail": "This user is already active in this department."},
-                        status=status.HTTP_400_BAD_REQUEST
+            try:
+                with transaction.atomic():
+                    # check if the user is already active in this department
+                    # # select_for_update() locks the row for this teacher-department pair
+                    mapping = (
+                        UserDepartment.all_objects
+                        .select_for_update()
+                        .filter(department=department, user_id=user_id)
+                        .order_by('-id')
+                        .first()
                     )
-                # if the user is inactive, make them active
-                mapping.status = 'a'
-                mapping.save()
-                serializer = UserDepartmentSerializer(mapping, context={'request': request})
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            # if the user is not already active in this department, create a new record
-            data = request.data.copy()
-            data['department'] = department.id
+                    if mapping:
+                        if mapping.status == 'a':
+                            return Response(
+                                {"detail": "This user is already active in this department."},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        # Reactivate existing record safely
+                        mapping.status = 'a'
+                        mapping.save(update_fields=['status'])
+                        serializer = UserDepartmentSerializer(mapping, context={'request': request})
+                        return Response(serializer.data, status=status.HTTP_200_OK)
+                    
+                    # if the user is not already active in this department, create a new record
+                    data = request.data.copy()
+                    data['department'] = department.id
+                    serializer = UserDepartmentSerializer(data=data, context={'request': request})
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError:
+                # Catch collision where another thread created the record first
+                return Response(
+                    {"detail": "This user is already active in this department."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            serializer = UserDepartmentSerializer(data=data, context={'request': request})
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
 class QualificationViewSet(viewsets.ModelViewSet):
     queryset = Qualification.objects.all().order_by('-id')
     serializer_class = QualificationSerializer
