@@ -118,14 +118,17 @@ class TeacherViewSet(viewsets.ModelViewSet):
         # subquery to count active courses for each teacher
         course_sq = CourseTeachers.objects.filter(
             teacher=OuterRef('pk')
-        ).exclude(status='i').values('teacher').annotate(
+        ).exclude(
+            Q(status='i') | Q(course__status='i')  # Exclude if assignment OR course is inactive
+        ).values('teacher').annotate(
             count=Count('id', distinct=True)
         ).values('count')
 
         # subquery to count distinct students across all active courses for each teacher
         student_sq = Enrollment.objects.filter(
             course__course_teachers__teacher=OuterRef('pk'),
-            course__course_teachers__status='a'
+            course__course_teachers__status='a',
+            course__status='a' # Only active courses
         ).exclude(status='i').values('course__course_teachers__teacher').annotate(
             count=Count('student', distinct=True)
         ).values('count')
@@ -141,7 +144,9 @@ class TeacherViewSet(viewsets.ModelViewSet):
         pending_sq = Submission.objects.filter(
             assignment__teacher=OuterRef('pk'),
             status__in=['s', 'l']
-        ).exclude(status='i').values('assignment__teacher').annotate(
+        ).exclude(
+            Q(status='i') | Q(assignment__status='i') # Exclude if submission OR assignment is inactive
+        ).values('assignment__teacher').annotate(
             count=Count('id', distinct=True)
         ).values('count')
 
