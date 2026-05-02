@@ -277,8 +277,8 @@ class DesignationViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = DesignationFilter
 
-    search_fields = ['designation_name']
-    ordering_fields = ['designation_name', 'created_date']
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_date']
 
 class UserDesignationViewSet(viewsets.ModelViewSet):
     # exclude inactive designations
