@@ -63,19 +63,22 @@ class TeacherViewSet(viewsets.ModelViewSet):
         # assign it to 'teacher_assignment' so my serializer can grab it instantly without hitting the DB again.
         teacher_assignment_qs = Prefetch(
             'course_teachers',
-            queryset=CourseTeachers.objects.filter(teacher=teacher),
+            queryset=CourseTeachers.objects.filter(teacher=teacher, status='a').order_by('-id'),
             to_attr='teacher_assignments'
         )
 
         # querying the Course table backwards through the join table.
         # using .annotate() to count active enrollments directly in PostgreSQL/SQLite.
-        queryset = Course.objects.filter(course_teachers__teacher=teacher).annotate(
+        queryset = Course.objects.filter(
+            course_teachers__teacher=teacher,
+            course_teachers__status='a'
+        ).annotate(
             student_count=Count(
                 'enrollments',
                 filter=~Q(enrollments__status='i'),
                 distinct=True
             )
-        ).prefetch_related(teacher_assignment_qs).order_by('-id')
+        ).prefetch_related(teacher_assignment_qs).distinct().order_by('-id')
 
         filterset = TeacherCourseFilter(request.query_params, queryset=queryset)
         if not filterset.is_valid():
