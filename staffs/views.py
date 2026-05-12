@@ -49,6 +49,19 @@ class TeacherViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'employee_code', 'email_institutional']
     ordering_fields = ['first_name', 'last_name', 'employee_code']
 
+    # Override get_queryset to allow dynamic manager switching based on query parameters
+    def get_queryset(self):
+        """
+        Dynamically switch the base manager if the client explicitly 
+        filters by status. This delegates the actual value matching to DjangoFilterBackend
+        """
+        # If the client is explicitly filtering by ANY status, unlock the full historical table and let django-filters handle the exact match.
+        if 'status' in self.request.query_params:
+            return Teacher.all_objects.select_related('user').order_by('-id')
+            
+        # use the standard manager which hides inactive records
+        return Teacher.objects.select_related('user').order_by('-id')
+
     @action(detail=True, methods=['get'])
     def courses(self, request, pk=None):
         """
