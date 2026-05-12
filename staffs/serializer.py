@@ -153,6 +153,15 @@ class UserQualificationSerializer(BaseSerializer):
         new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
 
         if new_status != 'i' and user and qualification:
+            # Let the default manager determine if the teacher is active
+            if not models.Teacher.objects.filter(user=user).exists():
+                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
+                
+            # Let the default manager determine if the qualification is active
+            if not models.Qualification.objects.filter(pk=qualification.pk).exists():
+                raise serializers.ValidationError("Cannot activate: The associated qualification is inactive.")
+
+            # Check for active duplicates (excluding self)
             qs = models.UserQualification.objects.filter(user=user, qualification=qualification).exclude(status='i')
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
@@ -188,6 +197,15 @@ class UserSpecializationSerializer(BaseSerializer):
         new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
 
         if new_status != 'i' and user and specialization:
+            # Let the default manager determine if the teacher is active
+            if not models.Teacher.objects.filter(user=user).exists():
+                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
+                
+            # Let the default manager determine if the specialization is active
+            if not models.Specialization.objects.filter(pk=specialization.pk).exists():
+                raise serializers.ValidationError("Cannot activate: The associated specialization is inactive.")
+
+            # Check for active duplicates (excluding self)
             qs = models.UserSpecialization.objects.filter(user=user, specialization=specialization).exclude(status='i')
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
@@ -223,6 +241,15 @@ class UserDepartmentSerializer(BaseSerializer):
         new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
 
         if new_status != 'i' and user and department:
+            # Let the default manager determine if the teacher is active
+            if not models.Teacher.objects.filter(user=user).exists():
+                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
+                
+            # Let the default manager determine if the department is active
+            if not models.Department.objects.filter(pk=department.pk).exists():
+                raise serializers.ValidationError("Cannot activate: The associated department is inactive.")
+
+            # Check for active duplicates (excluding self)
             qs = models.UserDepartment.objects.filter(user=user, department=department).exclude(status='i')
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
@@ -258,6 +285,15 @@ class UserDesignationSerializer(BaseSerializer):
         new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
 
         if new_status != 'i' and user and designation:
+            # Let the default manager determine if the teacher is active
+            if not models.Teacher.objects.filter(user=user).exists():
+                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
+                
+            # Let the default manager determine if the designation is active
+            if not models.Designation.objects.filter(pk=designation.pk).exists():
+                raise serializers.ValidationError("Cannot activate: The associated designation is inactive.")
+
+            # Check for active duplicates (excluding self)
             qs = models.UserDesignation.objects.filter(user=user, designation=designation).exclude(status='i')
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
