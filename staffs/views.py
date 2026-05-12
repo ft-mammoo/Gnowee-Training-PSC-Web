@@ -55,8 +55,8 @@ class TeacherViewSet(viewsets.ModelViewSet):
         Dynamically switch the base manager if the client explicitly 
         filters by status. This delegates the actual value matching to DjangoFilterBackend
         """
-        # If the client is explicitly filtering by ANY status, unlock the full historical table and let django-filters handle the exact match.
-        if 'status' in self.request.query_params:
+        # if action is 'list' and 'status' is in query params, use the all_objects manager to include inactive records for filtering
+        if self.action == 'list' and 'status' in self.request.query_params:
             return Teacher.all_objects.select_related('user').order_by('-id')
             
         # use the standard manager which hides inactive records
