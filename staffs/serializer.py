@@ -146,6 +146,20 @@ class UserQualificationSerializer(BaseSerializer):
             raise serializers.ValidationError("Cannot assign to an inactive qualification.")
         return value
 
+    # unique validation
+    def validate(self, attrs):
+        user = attrs.get('user', getattr(self.instance, 'user', None))
+        qualification = attrs.get('qualification', getattr(self.instance, 'qualification', None))
+        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
+
+        if new_status != 'i' and user and qualification:
+            qs = models.UserQualification.objects.filter(user=user, qualification=qualification).exclude(status='i')
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError("This user already has an active mapping for this qualification.")
+        return attrs
+
 class SpecializationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Specialization
@@ -166,6 +180,20 @@ class UserSpecializationSerializer(BaseSerializer):
         if value.status != 'a':
             raise serializers.ValidationError("Cannot assign to an inactive specialization.")
         return value
+
+    # unique validation
+    def validate(self, attrs):
+        user = attrs.get('user', getattr(self.instance, 'user', None))
+        specialization = attrs.get('specialization', getattr(self.instance, 'specialization', None))
+        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
+
+        if new_status != 'i' and user and specialization:
+            qs = models.UserSpecialization.objects.filter(user=user, specialization=specialization).exclude(status='i')
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError("This user already has an active mapping for this specialization.")
+        return attrs
 
 class DepartmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
@@ -188,6 +216,20 @@ class UserDepartmentSerializer(BaseSerializer):
             raise serializers.ValidationError("Cannot assign to an inactive department.")
         return value
 
+    # unique validation
+    def validate(self, attrs):
+        user = attrs.get('user', getattr(self.instance, 'user', None))
+        department = attrs.get('department', getattr(self.instance, 'department', None))
+        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
+
+        if new_status != 'i' and user and department:
+            qs = models.UserDepartment.objects.filter(user=user, department=department).exclude(status='i')
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError("This user already has an active mapping for this department.")
+        return attrs
+
 class DesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Designation
@@ -208,3 +250,17 @@ class UserDesignationSerializer(BaseSerializer):
         if value.status != 'a':
             raise serializers.ValidationError("Cannot assign to an inactive designation.")
         return value
+    
+    # unique validation
+    def validate(self, attrs):
+        user = attrs.get('user', getattr(self.instance, 'user', None))
+        designation = attrs.get('designation', getattr(self.instance, 'designation', None))
+        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
+
+        if new_status != 'i' and user and designation:
+            qs = models.UserDesignation.objects.filter(user=user, designation=designation).exclude(status='i')
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError("This user already has an active mapping for this designation.")
+        return attrs
