@@ -24,6 +24,43 @@ class TeacherSerializer(BaseSerializer):
         )]
     )
 
+    # Custom validation to catch uniqueness violations during partial updates (PATCH) where unique fields are omitted but status changes to active.
+    def validate(self, attrs):
+        current_status = self.instance.status if self.instance else 'a'
+        new_status = attrs.get('status', current_status)
+
+        # If the profile is inactive, no unique checks are needed.
+        if new_status == 'i':
+            return attrs
+
+        # Define the fields we need to protect and their specific error messages
+        unique_fields = {
+            'employee_code': "teacher with this employee code already exists.",
+            'email_institutional': "teacher with this email institutional already exists.",
+            'user': "An active teacher profile already exists for this user."
+        }
+
+        # Build the base queryset (Active teachers, excluding the current one)
+        base_qs = models.Teacher.objects.exclude(status='i')
+        if self.instance:
+            base_qs = base_qs.exclude(pk=self.instance.pk)
+
+        # Dynamically check all fields and collect all errors simultaneously
+        errors = {}
+        for field, error_msg in unique_fields.items():
+            # Get the new value from the request, or fallback to the existing database value
+            val = attrs.get(field, getattr(self.instance, field, None) if self.instance else None)
+            
+            # **{field: val} dynamically unpacks to e.g., employee_code="EMP001"
+            if val and base_qs.filter(**{field: val}).exists():
+                errors[field] = error_msg
+                
+        # If we caught any collisions, raise them all at once
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
     class Meta(BaseSerializer.Meta):
         model = models.Teacher
         fields = '__all__'
