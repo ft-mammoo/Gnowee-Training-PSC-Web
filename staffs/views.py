@@ -160,7 +160,8 @@ class TeacherViewSet(viewsets.ModelViewSet):
 
         # subquery to count assignments for each teacher
         assignments_sq = Assignment.objects.filter(
-            teacher=OuterRef('pk')
+            teacher=OuterRef('pk'),
+            course__status='p'   # Only count assignments from active Published courses
         ).exclude(status='i').values('teacher').annotate(
             count=Count('id', distinct=True)
         ).values('count')
@@ -168,6 +169,7 @@ class TeacherViewSet(viewsets.ModelViewSet):
         # subquery to count pending submissions for each teacher
         pending_sq = Submission.objects.filter(
             assignment__teacher=OuterRef('pk'),
+            assignment__course__status='p',  # Only count submissions from active Published courses
             status__in=['s', 'l']
         ).exclude(
             Q(status='i') | Q(assignment__status='i') # Exclude if submission OR assignment is inactive
