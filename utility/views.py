@@ -54,6 +54,22 @@ class UserDesignationPagination(BaseViewPagination):
     page_size = 50
 
 class StatusManagerMixin:
+    # This mixin allows ViewSets to dynamically switch between the default manager and a custom 'all_objects' manager based on the presence of a 'status' query parameter.
+    def get_status_manager(self, model):
+        """
+        Dynamically resolves the manager based on ViewSet configuration.
+        """
+        status_val = self.request.query_params.get('status')
+        
+        # We look for a list of 'list_actions' defined on the ViewSet.
+        # If not defined, we default to only the standard 'list' action.
+        allow_status_on = getattr(self, 'allow_status_on', ['list'])
+        
+        if status_val and self.action in allow_status_on:
+            return model.all_objects
+        return model.objects
+    
+    # Override get_queryset to use the dynamic manager
     def get_queryset(self):
         model = self.queryset.model
         status_val = self.request.query_params.get('status')

@@ -44,6 +44,7 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
     related_lookups = ['user']
+    allow_status_on = ['list', 'materials', 'courses', 'assignments']
     serializer_class = TeacherSerializer
     pagination_class = TeacherPagination #20 per page
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -101,7 +102,9 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
         Returns all teaching materials uploaded by a specific teacher.
         """
         teacher = self.get_object()
-        queryset = Material.objects.filter(teacher=teacher).order_by('-id')
+        manager = self.get_status_manager(Material) # dynamically switch between Material.objects and Material.all_objects based on 'status' query param
+        # filter materials directly in the database by teacher and status, then apply any additional filters from the query params.
+        queryset = manager.filter(teacher=teacher).order_by('-id')
 
         filterset = TeacherMaterialFilter(request.query_params, queryset=queryset)
         if not filterset.is_valid():
@@ -208,6 +211,7 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     Handles Department administration and Staff-to-Department assignments.
     """
     queryset = Department.objects.all().order_by('-id')
+    allow_status_on = ['list', 'teachers']
     serializer_class = DepartmentSerializer
     pagination_class = DepartmentPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -224,11 +228,11 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
         department = self.get_object()
 
         if request.method == 'GET':
-            # filtering teachers who are actively linked to this department through the UserDepartment join table, and also ensuring the teacher themselves are active.
-            queryset = Teacher.objects.filter(
+            manager = self.get_status_manager(Teacher) # dynamically switch between Teacher.objects and Teacher.all_objects based on 'status' query param
+            # join through the UserDepartment table to filter teachers by department membership and status.
+            queryset = manager.filter(
                 user__userdepartment__department=department,
                 user__userdepartment__status='a',
-                status='a'
             ).select_related('user').order_by('-id')
 
             page = self.paginate_queryset(queryset)
