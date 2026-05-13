@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, transaction, connection
 from django.db.models import Count, Q, Prefetch, OuterRef, Subquery, IntegerField
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
@@ -256,24 +256,33 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             
             try:
                 with transaction.atomic():
-                    # check if the user is already active in this department
-                    # # select_for_update() locks the row for this teacher-department pair
-                    mapping = (
-                        UserDepartment.all_objects
-                        .select_for_update()
-                        .filter(department=department, user_id=user_id)
-                        .order_by('-id')
-                        .first()
-                    )
+                    # Check if the user is already mapped to this department in any state active or inactive
+                    # Use all_objects to find historical records for reactivation
+                    queryset = UserDepartment.all_objects.filter(
+                        department=department, 
+                        user_id=user_id
+                    ).order_by('-id')
+                    # apply row-locking if the DB engine supports it, this prevents the NotSupportedError crash on SQLite
+                    if connection.features.has_select_for_update:
+                        queryset = queryset.select_for_update()
+
+                    mapping = queryset.first()
+
                     if mapping:
                         if mapping.status == 'a':
                             return Response(
                                 {"detail": "This user is already active in this department."},
                                 status=status.HTTP_400_BAD_REQUEST
                             )
+                        
                         # Reactivate existing record safely
                         # Use Serializer for reactivation to trigger validation and maintain consistency
-                        serializer = UserDepartmentSerializer(mapping, data={'status': 'a'}, partial=True, context={'request': request})
+                        serializer = UserDepartmentSerializer(
+                            mapping, 
+                            data={'status': 'a'}, 
+                            partial=True, 
+                            context={'request': request}
+                        )
                         serializer.is_valid(raise_exception=True)
                         serializer.save()
                         return Response(serializer.data, status=status.HTTP_200_OK)
