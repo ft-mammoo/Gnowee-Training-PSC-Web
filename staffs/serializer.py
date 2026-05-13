@@ -6,11 +6,48 @@ from courses.models import Course, Material
 from staffs import models
 from utility.serializer import BaseSerializer
 
-class TeacherSerializer(BaseSerializer):
+class MappingReactivationMixin:
+    """
+    Mixin to provide shared validation logic for staff mapping models.
+    Ensures parents are active and prevents duplicate active mappings.
+    """
+    def validate_mapping(self, attrs, model, target_field, target_model, target_name):
+        # 1. Lookups: Handles both POST (in attrs) and PATCH (on instance)
+        user = attrs.get('user', getattr(self.instance, 'user', None))
+        target_obj = attrs.get(target_field, getattr(self.instance, target_field, None))
+        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
 
+        # 2. Logic: Only validate when activating or creating (status != 'i')
+        if new_status != 'i' and user and target_obj:
+            
+            # Parent Teacher check
+            if not models.Teacher.objects.filter(user=user).exists():
+                raise serializers.ValidationError({
+                    "user": "This user is not registered as an active teacher profile."
+                })
+                
+            # Target Entity check (Department/Qualification/etc)
+            if not target_model.objects.filter(pk=target_obj.pk).exists():
+                raise serializers.ValidationError({
+                    target_field: f"Cannot assign to an inactive {target_name}."
+                })
+
+            # 3. Duplicate check (Excluding current instance)
+            filter_kwargs = {'user': user, target_field: target_obj}
+            qs = model.objects.filter(**filter_kwargs).exclude(status='i')
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            
+            if qs.exists():
+                raise serializers.ValidationError({
+                    "non_field_errors": [f"This user already has an active mapping for this {target_name}."]
+                })
+                
+        return attrs
+
+class TeacherSerializer(BaseSerializer):
     employee_code = serializers.CharField(
         validators=[UniqueValidator(
-            # Exclude inactive teachers from the uniqueness check
             queryset=models.Teacher.objects.exclude(status='i'), 
             message="teacher with this employee code already exists."
         )]
@@ -18,44 +55,34 @@ class TeacherSerializer(BaseSerializer):
 
     email_institutional = serializers.CharField(
         validators=[UniqueValidator(
-            # Exclude inactive teachers from the uniqueness check
             queryset=models.Teacher.objects.exclude(status='i'), 
             message="teacher with this email institutional already exists."
         )]
     )
 
-    # Custom validation to catch uniqueness violations during partial updates (PATCH) where unique fields are omitted but status changes to active.
     def validate(self, attrs):
         current_status = self.instance.status if self.instance else 'a'
         new_status = attrs.get('status', current_status)
 
-        # If the profile is inactive, no unique checks are needed.
         if new_status == 'i':
             return attrs
 
-        # Define the fields we need to protect and their specific error messages
         unique_fields = {
             'employee_code': "teacher with this employee code already exists.",
             'email_institutional': "teacher with this email institutional already exists.",
             'user': "An active teacher profile already exists for this user."
         }
 
-        # Build the base queryset (Active teachers, excluding the current one)
         base_qs = models.Teacher.objects.exclude(status='i')
         if self.instance:
             base_qs = base_qs.exclude(pk=self.instance.pk)
 
-        # Dynamically check all fields and collect all errors simultaneously
         errors = {}
         for field, error_msg in unique_fields.items():
-            # Get the new value from the request, or fallback to the existing database value
             val = attrs.get(field, getattr(self.instance, field, None) if self.instance else None)
-            
-            # **{field: val} dynamically unpacks to e.g., employee_code="EMP001"
             if val and base_qs.filter(**{field: val}).exists():
                 errors[field] = error_msg
                 
-        # If we caught any collisions, raise them all at once
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -64,7 +91,6 @@ class TeacherSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Teacher
         fields = '__all__'
-
         validators = [
             serializers.UniqueTogetherValidator(
                 queryset=models.Teacher.objects.exclude(status='i'),
@@ -72,6 +98,8 @@ class TeacherSerializer(BaseSerializer):
                 message="An active teacher profile already exists for this user."
             )
         ]
+
+# --- Nested & Identity Serializers ---
 
 class TeacherCourseListSerializer(BaseSerializer):
     assignment = serializers.SerializerMethodField()
@@ -120,183 +148,86 @@ class TeacherMinimalSerializer(BaseSerializer):
         model = models.Teacher
         fields = ['id', 'first_name', 'last_name', 'employee_code', 'email_institutional']
 
+# ADDED BACK: TeacherNameSerializer (Required by assessments app)
 class TeacherNameSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Teacher
         fields = ['id', 'first_name', 'last_name']
+
+# --- Mapping Serializers (Clean & Non-Hardcoded) ---
 
 class QualificationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Qualification
         fields = '__all__'
 
-class UserQualificationSerializer(BaseSerializer):
+class UserQualificationSerializer(MappingReactivationMixin, BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserQualification
         fields = '__all__'
-    # active teacher validation
-    def validate_user(self, value):
-        if not models.Teacher.objects.filter(user=value, status='a').exists():
-            raise serializers.ValidationError("This user is not registered as an active teacher.")
-        return value
-    
-    # active qualification validation
-    def validate_qualification(self, value):
-        if value.status != 'a':
-            raise serializers.ValidationError("Cannot assign to an inactive qualification.")
-        return value
 
-    # unique validation
     def validate(self, attrs):
-        user = attrs.get('user', getattr(self.instance, 'user', None))
-        qualification = attrs.get('qualification', getattr(self.instance, 'qualification', None))
-        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
-
-        if new_status != 'i' and user and qualification:
-            # Let the default manager determine if the teacher is active
-            if not models.Teacher.objects.filter(user=user).exists():
-                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
-                
-            # Let the default manager determine if the qualification is active
-            if not models.Qualification.objects.filter(pk=qualification.pk).exists():
-                raise serializers.ValidationError("Cannot activate: The associated qualification is inactive.")
-
-            # Check for active duplicates (excluding self)
-            qs = models.UserQualification.objects.filter(user=user, qualification=qualification).exclude(status='i')
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError("This user already has an active mapping for this qualification.")
-        return attrs
+        return self.validate_mapping(
+            attrs, 
+            model=models.UserQualification, 
+            target_field='qualification', 
+            target_model=models.Qualification, 
+            target_name='qualification'
+        )
 
 class SpecializationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Specialization
         fields = '__all__'
 
-class UserSpecializationSerializer(BaseSerializer):
+class UserSpecializationSerializer(MappingReactivationMixin, BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserSpecialization
         fields = '__all__'
-    # active teacher validation
-    def validate_user(self, value):
-        if not models.Teacher.objects.filter(user=value, status='a').exists():
-            raise serializers.ValidationError("This user is not registered as an active teacher.")
-        return value
-    
-    # active specialization validation
-    def validate_specialization(self, value):
-        if value.status != 'a':
-            raise serializers.ValidationError("Cannot assign to an inactive specialization.")
-        return value
 
-    # unique validation
     def validate(self, attrs):
-        user = attrs.get('user', getattr(self.instance, 'user', None))
-        specialization = attrs.get('specialization', getattr(self.instance, 'specialization', None))
-        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
-
-        if new_status != 'i' and user and specialization:
-            # Let the default manager determine if the teacher is active
-            if not models.Teacher.objects.filter(user=user).exists():
-                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
-                
-            # Let the default manager determine if the specialization is active
-            if not models.Specialization.objects.filter(pk=specialization.pk).exists():
-                raise serializers.ValidationError("Cannot activate: The associated specialization is inactive.")
-
-            # Check for active duplicates (excluding self)
-            qs = models.UserSpecialization.objects.filter(user=user, specialization=specialization).exclude(status='i')
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError("This user already has an active mapping for this specialization.")
-        return attrs
+        return self.validate_mapping(
+            attrs, 
+            model=models.UserSpecialization, 
+            target_field='specialization', 
+            target_model=models.Specialization, 
+            target_name='specialization'
+        )
 
 class DepartmentSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Department
         fields = '__all__'
 
-class UserDepartmentSerializer(BaseSerializer):
+class UserDepartmentSerializer(MappingReactivationMixin, BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserDepartment
         fields = '__all__'
-    # active teacher validation
-    def validate_user(self, value):
-        if not models.Teacher.objects.filter(user=value, status='a').exists():
-            raise serializers.ValidationError("This user is not registered as an active teacher.")
-        return value
-    
-    # active department validation
-    def validate_department(self, value):
-        if value.status != 'a':
-            raise serializers.ValidationError("Cannot assign to an inactive department.")
-        return value
 
-    # unique validation
     def validate(self, attrs):
-        user = attrs.get('user', getattr(self.instance, 'user', None))
-        department = attrs.get('department', getattr(self.instance, 'department', None))
-        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
-
-        if new_status != 'i' and user and department:
-            # Let the default manager determine if the teacher is active
-            if not models.Teacher.objects.filter(user=user).exists():
-                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
-                
-            # Let the default manager determine if the department is active
-            if not models.Department.objects.filter(pk=department.pk).exists():
-                raise serializers.ValidationError("Cannot activate: The associated department is inactive.")
-
-            # Check for active duplicates (excluding self)
-            qs = models.UserDepartment.objects.filter(user=user, department=department).exclude(status='i')
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError("This user already has an active mapping for this department.")
-        return attrs
+        return self.validate_mapping(
+            attrs, 
+            model=models.UserDepartment, 
+            target_field='department', 
+            target_model=models.Department, 
+            target_name='department'
+        )
 
 class DesignationSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Designation
         fields = '__all__'
 
-class UserDesignationSerializer(BaseSerializer):
+class UserDesignationSerializer(MappingReactivationMixin, BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.UserDesignation
         fields = '__all__'
-    # active teacher validation
-    def validate_user(self, value):
-        if not models.Teacher.objects.filter(user=value, status='a').exists():
-            raise serializers.ValidationError("This user is not registered as an active teacher.")
-        return value
-    
-    # active designation validation
-    def validate_designation(self, value):
-        if value.status != 'a':
-            raise serializers.ValidationError("Cannot assign to an inactive designation.")
-        return value
-    
-    # unique validation
+
     def validate(self, attrs):
-        user = attrs.get('user', getattr(self.instance, 'user', None))
-        designation = attrs.get('designation', getattr(self.instance, 'designation', None))
-        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
-
-        if new_status != 'i' and user and designation:
-            # Let the default manager determine if the teacher is active
-            if not models.Teacher.objects.filter(user=user).exists():
-                raise serializers.ValidationError("Cannot activate: The associated teacher profile is inactive.")
-                
-            # Let the default manager determine if the designation is active
-            if not models.Designation.objects.filter(pk=designation.pk).exists():
-                raise serializers.ValidationError("Cannot activate: The associated designation is inactive.")
-
-            # Check for active duplicates (excluding self)
-            qs = models.UserDesignation.objects.filter(user=user, designation=designation).exclude(status='i')
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError("This user already has an active mapping for this designation.")
-        return attrs
+        return self.validate_mapping(
+            attrs, 
+            model=models.UserDesignation, 
+            target_field='designation', 
+            target_model=models.Designation, 
+            target_name='designation'
+        )
