@@ -52,3 +52,18 @@ class DesignationPagination(BaseViewPagination):
 
 class UserDesignationPagination(BaseViewPagination):
     page_size = 50
+
+class StatusManagerMixin:
+    def get_queryset(self):
+        model = self.queryset.model
+        status_val = self.request.query_params.get('status')
+        
+        # Switch managers based on status presence
+        manager = model.all_objects if (self.action == 'list' and status_val) else model.objects
+        queryset = manager.all()
+
+        related = getattr(self, 'related_lookups', None)
+        if related:
+            queryset = queryset.select_related(*related)
+            
+        return queryset.order_by('-id')

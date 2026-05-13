@@ -31,10 +31,11 @@ from students.models import Enrollment
 from utility.views import (
     TeacherPagination, TeacherMaterialPagination, DepartmentPagination,
     QualificationPagination, UserQualificationPagination, SpecializationPagination,
-    UserSpecializationPagination, DesignationPagination, UserDesignationPagination
+    UserSpecializationPagination, DesignationPagination, UserDesignationPagination,
+    StatusManagerMixin
 )
 
-class TeacherViewSet(viewsets.ModelViewSet):
+class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing Teacher profiles and related academic metrics.
     
@@ -42,6 +43,7 @@ class TeacherViewSet(viewsets.ModelViewSet):
     retrieving course assignments, teaching materials, and workload analytics.
     """
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
+    related_lookups = ['user']
     serializer_class = TeacherSerializer
     pagination_class = TeacherPagination #20 per page
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -49,21 +51,6 @@ class TeacherViewSet(viewsets.ModelViewSet):
     search_fields = ['first_name', 'last_name', 'employee_code', 'email_institutional']
     ordering_fields = ['first_name', 'last_name', 'employee_code']
 
-    # Override get_queryset to allow dynamic manager switching based on query parameters
-    def get_queryset(self):
-        """
-        Dynamically switch the base manager if the client explicitly 
-        filters by status. This delegates the actual value matching to DjangoFilterBackend
-        """
-
-        # FIX: Check if 'status' has a truthy value (not empty)
-        status_val = self.request.query_params.get('status')
-
-        if self.action == 'list' and status_val:
-            return Teacher.all_objects.select_related('user').order_by('-id')
-            
-        # use the standard manager which hides inactive records
-        return Teacher.objects.select_related('user').order_by('-id')
 
     @action(detail=True, methods=['get'])
     def courses(self, request, pk=None):
@@ -216,7 +203,7 @@ class TeacherViewSet(viewsets.ModelViewSet):
         serializer = TeacherWorkloadSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
     
-class DepartmentViewSet(viewsets.ModelViewSet):
+class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Handles Department administration and Staff-to-Department assignments.
     """
@@ -304,7 +291,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-class QualificationViewSet(viewsets.ModelViewSet):
+class QualificationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Manages the global list of professional qualifications.
     """
@@ -332,7 +319,7 @@ class UserQualificationViewSet(viewsets.ModelViewSet):
 
     ordering_fields = ['user', 'qualification', 'created_date']
 
-class SpecializationViewSet(viewsets.ModelViewSet):
+class SpecializationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Manages the global list of academic specializations.
     """
@@ -360,7 +347,7 @@ class UserSpecializationViewSet(viewsets.ModelViewSet):
 
     ordering_fields = ['user', 'specialization', 'created_date']
 
-class DesignationViewSet(viewsets.ModelViewSet):
+class DesignationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Manages the global list of job designations/titles.
     """
