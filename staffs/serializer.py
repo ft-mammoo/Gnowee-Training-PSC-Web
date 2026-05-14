@@ -12,12 +12,13 @@ class MappingReactivationMixin:
     Ensures parents are active and prevents duplicate active mappings.
     """
     def validate_mapping(self, attrs, model, target_field, target_model, target_name):
-        # 1. Lookups: Handles both POST (in attrs) and PATCH (on instance)
-        user = attrs.get('user', getattr(self.instance, 'user', None))
-        target_obj = attrs.get(target_field, getattr(self.instance, target_field, None))
-        new_status = attrs.get('status', getattr(self.instance, 'status', 'a'))
+        # Handles both POST (in attrs) and PATCH (on instance)
+        instance = self.instance if self.instance else None
+        user = attrs.get('user', getattr(instance, 'user', None) if instance else None)
+        target_obj = attrs.get(target_field, getattr(instance, target_field, None) if instance else None)
+        new_status = attrs.get('status', getattr(instance, 'status', 'a') if instance else 'a')
 
-        # 2. Logic: Only validate when activating or creating (status != 'i')
+        # Only validate when activating or creating (status != 'i')
         if new_status != 'i' and user and target_obj:
             
             # Parent Teacher check
@@ -35,8 +36,8 @@ class MappingReactivationMixin:
             # 3. Duplicate check (Excluding current instance)
             filter_kwargs = {'user': user, target_field: target_obj}
             qs = model.objects.filter(**filter_kwargs).exclude(status='i')
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
+            if instance:
+                qs = qs.exclude(pk=instance.pk)
             
             if qs.exists():
                 raise serializers.ValidationError({
