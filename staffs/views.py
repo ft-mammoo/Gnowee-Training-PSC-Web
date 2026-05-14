@@ -44,7 +44,7 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
     related_lookups = ['user']
-    allow_status_on = ['list', 'materials', 'courses', 'assignments']
+    allow_status_on = ['list', 'materials', 'courses', 'assignments', 'with_workload']
     serializer_class = TeacherSerializer
     pagination_class = TeacherPagination #20 per page
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -186,8 +186,15 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
             count=Count('id', distinct=True)
         ).values('count')
 
+        status_val = request.query_params.get('status')
+        manager = self.get_status_manager(Teacher)
+        queryset = manager.all()
+        
+        if status_val:
+            queryset = queryset.filter(status=status_val)
+
         # using Coalesce to return 0 instead of None when there are no related records
-        queryset = Teacher.objects.exclude(status='i').annotate(
+        queryset = queryset.annotate(
             total_courses=Coalesce(Subquery(course_sq, output_field=IntegerField()), 0),
             total_students=Coalesce(Subquery(student_sq, output_field=IntegerField()), 0),
             total_assignments=Coalesce(Subquery(assignments_sq, output_field=IntegerField()), 0),
@@ -228,12 +235,18 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
         department = self.get_object()
 
         if request.method == 'GET':
+            status_val = request.query_params.get('status')
             manager = self.get_status_manager(Teacher) # dynamically switch between Teacher.objects and Teacher.all_objects based on 'status' query param
-            # join through the UserDepartment table to filter teachers by department membership and status.
+            # filter teachers directly in the database by department and status, then apply any additional filters from the query params.
             queryset = manager.filter(
                 user__userdepartment__department=department,
                 user__userdepartment__status='a',
-            ).select_related('user').order_by('-id')
+            )
+
+            if status_val:
+                queryset = queryset.filter(status=status_val)
+            
+            queryset = queryset.select_related('user').order_by('-id')
 
             page = self.paginate_queryset(queryset)
             if page is not None:
@@ -308,14 +321,12 @@ class QualificationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     search_fields = ['name']
     ordering_fields = ['name', 'created_date']
 
-class UserQualificationViewSet(viewsets.ModelViewSet):
+class UserQualificationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Manages user-specific qualification assignments.
     """
-    # exclude inactive qualifications
-    queryset = UserQualification.objects.exclude(
-        qualification__status='i'
-    ).select_related('user', 'qualification').order_by('-id')
+    queryset = UserQualification.objects.all().order_by('-id')
+    related_lookups = ['user', 'qualification']
     serializer_class = UserQualificationSerializer
     pagination_class = UserQualificationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -336,14 +347,12 @@ class SpecializationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     search_fields = ['name']
     ordering_fields = ['name', 'created_date']
 
-class UserSpecializationViewSet(viewsets.ModelViewSet):
+class UserSpecializationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Manages user-specific specialization assignments.
     """
-    # exclude inactive specializations
-    queryset = UserSpecialization.objects.exclude(
-        specialization__status='i'
-    ).select_related('user', 'specialization').order_by('-id')
+    queryset = UserSpecialization.objects.all().order_by('-id')
+    related_lookups = ['user', 'specialization']
     serializer_class = UserSpecializationSerializer
     pagination_class = UserSpecializationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -364,14 +373,12 @@ class DesignationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     search_fields = ['name']
     ordering_fields = ['name', 'created_date']
 
-class UserDesignationViewSet(viewsets.ModelViewSet):
+class UserDesignationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     Manages user-specific job designation assignments.
     """
-    # exclude inactive designations
-    queryset = UserDesignation.objects.exclude(
-        designation__status='i'
-    ).select_related('user', 'designation').order_by('-id')
+    queryset = UserDesignation.objects.all().order_by('-id')
+    related_lookups = ['user', 'designation']
     serializer_class = UserDesignationSerializer
     pagination_class = UserDesignationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
