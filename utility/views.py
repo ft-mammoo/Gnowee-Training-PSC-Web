@@ -72,12 +72,10 @@ class StatusManagerMixin:
     # Override get_queryset to use the dynamic manager
     def get_queryset(self):
         model = self.queryset.model
-        status_val = self.request.query_params.get('status')
-        
-        # Switch managers based on status presence
-        manager = model.all_objects if (self.action == 'list' and status_val) else model.objects
+        # Use the dynamic manager to get the base queryset
+        manager = self.get_status_manager(model)
         queryset = manager.all()
-
+        
         related = getattr(self, 'related_lookups', None)
         if related:
             queryset = queryset.select_related(*related)
