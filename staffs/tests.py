@@ -745,3 +745,97 @@ class PerformanceAggregationsAPIEndpointTestCase(APITestCase):
         # Should cleanly swap query scopes to pull back the archived reference document
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['title'], 'Obsolete Reference Document')
+
+class BoundaryConditionsAPIEndpointTestCase(APITestCase):
+    """
+    Integration tests focusing on extreme boundary conditions, 
+    database isolation anomalies, self-referencing validation updates, and cross-model 
+    cascade constraints.
+    """
+
+    def setUp(self):
+        self.teachers_url = '/teachers/'
+        self.depts_url = '/departments/'
+
+        # Setup Active Teacher for modification boundaries
+        self.user_madhavan = User.objects.create_user(username='madhavan_p', password='password123')
+        self.teacher_madhavan = mod.Teacher.objects.create(
+            user=self.user_madhavan, first_name='Madhavan', last_name='Pillai',
+            employee_code='EMP-CS-7788', email_institutional='madhavan@nitc.ac.in', status='a'
+        )
+
+        # Setup Soft-deleted Qualification to test explicit whitelist omissions
+        self.inactive_diploma = mod.Qualification.objects.create(
+            name='Diploma in Punchcard Systems', description='Obsolete system framework', status='i'
+        )
+
+    def test_omitted_whitelist_action_forces_not_found_on_inactive_records(self):
+        """
+        QualificationViewSet lacks 'retrieve' inside its status whitelist.
+        Verify fetching an inactive record returns a 404 even if ?status=i is supplied.
+        """
+        url = f"/qualifications/{self.inactive_diploma.id}/?status=i"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_malformed_status_parameter_defaults_to_active_manager(self):
+        """
+        Verify that malformed query string variables like '?status=xyz'
+        do not trigger systemic crashes, defaulting safely back to standard active filters.
+        """
+        url = f"{self.teachers_url}?status=malformed_state_string"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('status', response.data)
+
+    def test_patch_teacher_retaining_same_code_passes_validation(self):
+        """
+        Verify patching a profile without modifying the unique field 
+        (employee_code) avoids colliding with itself during database uniqueness validations.
+        """
+        url = f"{self.teachers_url}{self.teacher_madhavan.id}/"
+        payload = {'first_name': 'Madhavan Unni'}
+        
+        response = self.client.patch(url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['first_name'], 'Madhavan Unni')
+
+    def test_assign_teacher_fails_if_parent_department_is_inactive(self):
+        """
+        Verify relational assignment structures prevent linking operational staff
+        to an administrative department that has been soft-deleted.
+        """
+        inactive_dept = mod.Department.objects.create(
+            name='Department of Alchemic Studies', description='Deactivated', status='i'
+        )
+        url = f"{self.depts_url}{inactive_dept.id}/teachers/"
+        payload = {'user': self.user_madhavan.id}
+        
+        response = self.client.post(url, data=payload, format='json')
+        
+        # Because the view uses get_object() via an active manager, the parent lookup triggers a 404
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_teacher_with_zero_history_evaluates_coalesce_metrics_to_zero(self):
+        """
+        Verify that a completely fresh teacher profile record evaluates 
+        database annotations to 0 instead of propagating null types across numerical fields.
+        """
+        user_fresh = User.objects.create_user(username='fresh_hire_kerala', password='password123')
+        teacher_fresh = mod.Teacher.objects.create(
+            user=user_fresh, first_name='Hari', last_name='Das',
+            employee_code='EMP-ME-0001', email_institutional='haridas@nitc.ac.in', status='a'
+        )
+
+        url = f"{self.teachers_url}with-workload/"
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        target_row = next(item for item in response.data['results'] if item['id'] == teacher_fresh.id)
+        
+        # Coalesce fallback checks
+        self.assertEqual(target_row['total_courses'], 0)
+        self.assertEqual(target_row['total_students'], 0)
+        self.assertEqual(target_row['total_assignments'], 0)
+        self.assertEqual(target_row['pending_submissions'], 0)
