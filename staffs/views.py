@@ -44,13 +44,19 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     queryset = Teacher.objects.all().select_related('user').order_by('-id')
     related_lookups = ['user']
-    allow_status_on = ['list', 'materials', 'courses', 'assignments', 'with_workload']
+    allow_status_on = ['list', 'retrieve', 'materials', 'courses', 'assignments', 'with_workload']
     serializer_class = TeacherSerializer
     pagination_class = TeacherPagination #20 per page
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = TeacherFilter
     search_fields = ['first_name', 'last_name', 'employee_code', 'email_institutional']
     ordering_fields = ['first_name', 'last_name', 'employee_code']
+
+    # Isolates parent teacher lookup from nested endpoint parameters
+    def filter_queryset(self, queryset):
+        if self.action in ['courses', 'materials', 'assignments']:
+            return queryset
+        return super().filter_queryset(queryset)
 
 
     @action(detail=True, methods=['get'])
@@ -227,6 +233,12 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_date']
 
+    # Isolates parent department lookup from child filter query parameters
+    def filter_queryset(self, queryset):
+        if self.action == 'teachers':
+            return queryset
+        return super().filter_queryset(queryset)
+
     @action(detail=True, methods=['get', 'post'])
     def teachers(self, request, pk=None):
         """
@@ -236,15 +248,13 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
 
         if request.method == 'GET':
             status_val = request.query_params.get('status')
+            mapping_status = status_val if status_val else 'a' # Dynamically match the relationship mapping status to the requested status, defaulting to active ('a')
             manager = self.get_status_manager(Teacher) # dynamically switch between Teacher.objects and Teacher.all_objects based on 'status' query param
             # filter teachers directly in the database by department and status, then apply any additional filters from the query params.
             queryset = manager.filter(
                 user__userdepartment__department=department,
-                user__userdepartment__status='a',
+                user__userdepartment__status=mapping_status,
             )
-
-            if status_val:
-                queryset = queryset.filter(status=status_val)
             
             queryset = queryset.select_related('user').order_by('-id')
 
