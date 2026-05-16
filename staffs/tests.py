@@ -1,8 +1,9 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
-from django.db import connection
+from django.db import connection, IntegrityError
 from django.test.utils import CaptureQueriesContext
 from datetime import date
+from unittest.mock import patch
 from utility.models import User
 from staffs import models as mod
 
@@ -232,3 +233,181 @@ class TeacherProfileAPIEndpointTestCase(APITestCase):
         # Verify row still exists in DB, but status is mutated
         self.active_teacher.refresh_from_db()
         self.assertEqual(self.active_teacher.status, 'i')
+
+class DepartmentAdministrationAPIEndpointTestCase(APITestCase):
+    """
+    Integration tests for Department endpoints and nested Teacher allocations.
+    Validates transactional consistency, relationship recycling, and subquery isolation.
+    """
+
+    def setUp(self):
+        self.base_url = '/departments/'
+
+        # 1. Setup Active and Inactive Departments (Regional Kerala/GCC Dataset)
+        self.active_dept_cs = mod.Department.objects.create(
+            name='Computer Science and Engineering',
+            description='Department of CSE at NIT Calicut',
+            status='a'
+        )
+        self.inactive_dept_ee = mod.Department.objects.create(
+            name='Electrical Engineering',
+            description='Legacy Department holding historical mappings',
+            status='i'
+        )
+
+        # 2. Setup Faculty Users & Profiles
+        self.user_anand = User.objects.create_user(username='anand_narayanan', password='password123')
+        self.teacher_anand = mod.Teacher.objects.create(
+            user=self.user_anand,
+            first_name='Anand',
+            last_name='Narayanan',
+            employee_code='EMP-CSE-011',
+            email_institutional='anand@nitc.ac.in',
+            status='a'
+        )
+
+        self.user_fahad = User.objects.create_user(username='fahad_mansoor', password='password123')
+        self.teacher_fahad = mod.Teacher.objects.create(
+            user=self.user_fahad,
+            first_name='Fahad',
+            last_name='Al-Mansoor',
+            employee_code='EMP-ECE-099',
+            email_institutional='f.mansoor@ku.ac.ae',
+            status='a'
+        )
+
+        # 3. Setup Relationships (Active assignment vs Legacy soft-deleted assignment)
+        self.active_mapping = mod.UserDepartment.objects.create(
+            user=self.user_anand,
+            department=self.active_dept_cs,
+            status='a'
+        )
+        self.historical_mapping = mod.UserDepartment.objects.create(
+            user=self.user_fahad,
+            department=self.active_dept_cs,
+            status='i' # Deactivated historical relationship
+        )
+
+    def test_list_departments_returns_active_only(self):
+        """
+        Verify base list view scopes visibility to active rows only,
+        enforcing structural segregation from archived institutional records.
+        """
+        response = self.client.get(self.base_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['name'], 'Computer Science and Engineering')
+
+    def test_list_departments_with_inactive_status_filter(self):
+        """
+        Verify manager switching securely exposes soft-deleted departments
+        when specifically requested via query parameters.
+        """
+        response = self.client.get(f"{self.base_url}?status=i")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['name'], 'Electrical Engineering')
+
+    def test_list_department_teachers_returns_active_mappings_only(self):
+        """
+        Verify nested GET route targets active faculty mappings,
+        preventing legacy staff associations from showing.
+        """
+        url = f"{self.base_url}{self.active_dept_cs.id}/teachers/"
+        
+        with CaptureQueriesContext(connection=connection) as ctx:
+            response = self.client.get(url)
+            
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only evaluate Dr. Anand Narayanan as active faculty
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['employee_code'], 'EMP-CSE-011')
+        # Check optimization to verify lookups do not cascade row operations
+        self.assertLessEqual(len(ctx.captured_queries), 4)
+
+    def test_list_department_teachers_with_inactive_status_filter(self):
+        """
+        Verify status query parameters override normal active query restrictions
+        to cleanly retrieve historical allocations.
+        """
+        url = f"{self.base_url}{self.active_dept_cs.id}/teachers/?status=i"
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should cleanly swap contexts to capture Prof. Fahad's historical relationship context
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['employee_code'], 'EMP-ECE-099')
+
+    def test_assign_teacher_to_department_success(self):
+        """
+        Verify creating a fresh relation safely links the target user 
+        to the specified department entity.
+        """
+        user_new = User.objects.create_user(username='dilip_kumar', password='password123')
+        mod.Teacher.objects.create(
+            user=user_new, first_name='Dilip', last_name='Kumar',
+            employee_code='EMP-CSE-012', email_institutional='dilip@nitc.ac.in', status='a'
+        )
+        
+        url = f"{self.base_url}{self.active_dept_cs.id}/teachers/"
+        payload = {'user': user_new.id}
+        
+        response = self.client.post(url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(mod.UserDepartment.objects.filter(department=self.active_dept_cs, status='a').count(), 2)
+
+    def test_assign_teacher_to_department_fails_on_duplicate_active(self):
+        """
+        Ensure validation halts transaction and rejects payload with a 400 
+        if the teacher is already actively allocated to that department.
+        """
+        url = f"{self.base_url}{self.active_dept_cs.id}/teachers/"
+        payload = {'user': self.user_anand.id} # Dr. Anand is already active here
+        
+        response = self.client.post(url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'], "This user is already active in this department.")
+
+    def test_assign_teacher_to_department_reactivates_historical_mapping(self):
+        """
+        Confirm recycling mechanism. If a soft-deleted record is matched,
+        the system must reactivate the row via partial updates instead of adding a new duplicate row.
+        """
+        url = f"{self.base_url}{self.active_dept_cs.id}/teachers/"
+        payload = {'user': self.user_fahad.id} # Prof. Fahad holds an inactive row ('i')
+        
+        response = self.client.post(url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.historical_mapping.refresh_from_db()
+        # Verify state transitioned cleanly back to Active
+        self.assertEqual(self.historical_mapping.status, 'a')
+        # Row allocation count remains unchanged
+        self.assertEqual(mod.UserDepartment.all_objects.count(), 2)
+
+    def test_assign_teacher_to_department_concurrency_handling(self):
+        """
+        Verify exception shielding blocks race conditions. Simulates an IntegrityError 
+        collision to prove transaction blocks recover with a graceful 400 instead of a 500 server crash.
+        """
+        user_race = User.objects.create_user(username='race_condition_user', password='password123')
+        # Create the missing active Teacher profile so the serializer passes base mapping checks
+        mod.Teacher.objects.create(
+            user=user_race, first_name='Race', last_name='Condition',
+            employee_code='EMP-RNG-999', email_institutional='race@nitc.ac.in', status='a'
+        )
+        url = f"{self.base_url}{self.active_dept_cs.id}/teachers/"
+        payload = {'user': user_race.id}
+        
+        # Patch the serializer's save method to simulate a concurrent write committing a fraction of a second earlier
+        with patch('staffs.views.UserDepartmentSerializer.save') as mock_save:
+            mock_save.side_effect = IntegrityError("UNIQUE constraint failed: staffs_userdepartment.user_id")
+            response = self.client.post(url, data=payload, format='json')
+            
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], "This user is already active in this department.")
