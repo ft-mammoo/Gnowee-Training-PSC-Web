@@ -81,7 +81,8 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
         # using .annotate() to count active enrollments directly in PostgreSQL/SQLite.
         queryset = Course.objects.filter(
             course_teachers__teacher=teacher,
-            course_teachers__status='a'
+            course_teachers__status='a',
+            status='p' # Only include active Published courses in the list
         ).annotate(
             student_count=Count(
                 'enrollments',
