@@ -62,9 +62,14 @@ class TeacherSerializer(BaseSerializer):
     )
 
     def validate(self, attrs):
+        """
+        Validates cross-field uniqueness parameters for non-inactive teachers,
+        minimizing database operations by isolating probes to modified attributes.
+        """
         current_status = self.instance.status if self.instance else 'a'
         new_status = attrs.get('status', current_status)
 
+        # If transitioning to inactive, bypass unique evaluation completely
         if new_status == 'i':
             return attrs
 
@@ -78,8 +83,18 @@ class TeacherSerializer(BaseSerializer):
         if self.instance:
             base_qs = base_qs.exclude(pk=self.instance.pk)
 
+        # FIXED: Isolate checks dynamically to prevent wasting database I/O on unedited fields
+        fields_to_check = set()
+        if not self.instance or current_status == 'i':
+            # Create mode or reactivation path requires evaluating all constraints
+            fields_to_check.update(unique_fields.keys())
+        else:
+            # Update mode: intersect incoming attrs with unique columns so we only check modified values
+            fields_to_check.update(set(attrs.keys()) & set(unique_fields.keys()))
+
         errors = {}
-        for field, error_msg in unique_fields.items():
+        for field in fields_to_check:
+            error_msg = unique_fields[field]
             val = attrs.get(field, getattr(self.instance, field, None) if self.instance else None)
             if val and base_qs.filter(**{field: val}).exists():
                 errors[field] = error_msg
