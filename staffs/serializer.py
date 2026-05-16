@@ -47,20 +47,6 @@ class MappingReactivationMixin:
         return attrs
 
 class TeacherSerializer(BaseSerializer):
-    employee_code = serializers.CharField(
-        validators=[UniqueValidator(
-            queryset=models.Teacher.objects.exclude(status='i'), 
-            message="teacher with this employee code already exists."
-        )]
-    )
-
-    email_institutional = serializers.CharField(
-        validators=[UniqueValidator(
-            queryset=models.Teacher.objects.exclude(status='i'), 
-            message="teacher with this email institutional already exists."
-        )]
-    )
-
     def validate(self, attrs):
         """
         Validates cross-field uniqueness parameters for non-inactive teachers,
@@ -107,15 +93,6 @@ class TeacherSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Teacher
         fields = '__all__'
-        validators = [
-            serializers.UniqueTogetherValidator(
-                queryset=models.Teacher.objects.exclude(status='i'),
-                fields=['user'],
-                message="An active teacher profile already exists for this user."
-            )
-        ]
-
-# --- Nested & Identity Serializers ---
 
 class TeacherCourseListSerializer(BaseSerializer):
     assignment = serializers.SerializerMethodField()
