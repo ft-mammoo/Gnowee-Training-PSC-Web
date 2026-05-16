@@ -255,7 +255,7 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
                 user__userdepartment__department=department,
                 user__userdepartment__status=mapping_status,
             )
-            
+
             queryset = queryset.select_related('user').order_by('-id')
 
             page = self.paginate_queryset(queryset)
@@ -337,6 +337,7 @@ class UserQualificationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     queryset = UserQualification.objects.all().order_by('-id')
     related_lookups = ['user', 'qualification']
+    allow_status_on = ['list', 'retrieve', 'partial_update', 'update']
     serializer_class = UserQualificationSerializer
     pagination_class = UserQualificationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -363,6 +364,7 @@ class UserSpecializationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     queryset = UserSpecialization.objects.all().order_by('-id')
     related_lookups = ['user', 'specialization']
+    allow_status_on = ['list', 'retrieve', 'partial_update', 'update']
     serializer_class = UserSpecializationSerializer
     pagination_class = UserSpecializationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -389,6 +391,7 @@ class UserDesignationViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     """
     queryset = UserDesignation.objects.all().order_by('-id')
     related_lookups = ['user', 'designation']
+    allow_status_on = ['list', 'retrieve', 'partial_update', 'update']
     serializer_class = UserDesignationSerializer
     pagination_class = UserDesignationPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
