@@ -267,7 +267,7 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
             queryset = manager.filter(
                 user__userdepartment__department=department,
                 user__userdepartment__status=mapping_status,
-            )
+            ).distinct()
 
             queryset = queryset.select_related('user').order_by('-id')
 
