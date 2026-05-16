@@ -575,3 +575,173 @@ class StandaloneMappingsAPIEndpointTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.historical_mapping.refresh_from_db() if hasattr(self, 'historical_mapping') else self.historical_qual_mapping.refresh_from_db()
         self.assertEqual(self.historical_qual_mapping.status, 'a')
+
+from django.contrib.auth import get_user_model
+from courses import models as course_mod
+from students import models as student_mod
+from assessments import models as assess_mod
+
+class PerformanceAggregationsAPIEndpointTestCase(APITestCase):
+    """
+    Integration tests for high-performance subqueries and analytical metrics.
+    Validates cross-app annotations, parent-state lookups, and distinct counts
+    to ensure optimization query barriers remain uncompromised.
+    """
+
+    def setUp(self):
+        self.base_url = '/teachers/'
+
+        # Setup Analytics Target Teacher
+        self.user_faisal = User.objects.create_user(username='dr_faisal_rahman', password='password123')
+        self.teacher_faisal = mod.Teacher.objects.create(
+            user=self.user_faisal,
+            first_name='Faisal',
+            last_name='Rahman',
+            employee_code='EMP-CS-3022',
+            email_institutional='faisal@nitc.ac.in',
+            status='a'
+        )
+
+        # Setup Student Profiles
+        self.user_stu1 = User.objects.create_user(username='asif_ali', password='password123')
+        self.student_asif = student_mod.Student.objects.create(
+            user=self.user_stu1, first_name='Asif', last_name='Ali',
+            date_of_birth=date(2002, 5, 14), gender='m', contact_number='9847012345',
+            emergency_contact_name='Ali K', emergency_contact_number='9847054321',
+            status='a', date_joined=date(2023, 6, 1)
+        )
+
+        self.user_stu2 = User.objects.create_user(username='meera_nair', password='password123')
+        self.student_meera = student_mod.Student.objects.create(
+            user=self.user_stu2, first_name='Meera', last_name='Nair',
+            date_of_birth=date(2003, 9, 21), gender='f', contact_number='9447012345',
+            emergency_contact_name='Nair K', emergency_contact_number='9447054321',
+            status='a', date_joined=date(2023, 6, 1)
+        )
+
+        # Setup Course Infrastructures (Active Published vs Legacy Draft/Archived)
+        self.published_course = course_mod.Course.objects.create(
+            title='Advanced Machine Learning',
+            description='Core research track elective at NIT Calicut',
+            status='p' # 'p' = Published
+        )
+        self.archived_course = course_mod.Course.objects.create(
+            title='Introduction to Fortran 77',
+            description='Legacy system coursework record',
+            status='a' # 'a' = Archived
+        )
+
+        # Map Teacher allocations to Course objects
+        course_mod.CourseTeachers.objects.create(
+            course=self.published_course, teacher=self.teacher_faisal, status='a'
+        )
+        course_mod.CourseTeachers.objects.create(
+            course=self.archived_course, teacher=self.teacher_faisal, status='a'
+        )
+
+        # Enroll Students into Active vs Archived Courses
+        student_mod.Enrollment.objects.create(
+            student=self.student_asif, course=self.published_course, status='a'
+        )
+        student_mod.Enrollment.objects.create(
+            student=self.student_meera, course=self.published_course, status='a'
+        )
+        # Meera is also enrolled in the inactive course to verify exclusion logic boundaries
+        student_mod.Enrollment.objects.create(
+            student=self.student_meera, course=self.archived_course, status='a'
+        )
+
+        # Establish Assignments & Submissions Context
+        self.active_assignment = assess_mod.Assignment.objects.create(
+            course=self.published_course, teacher=self.teacher_faisal,
+            title='Neural Networks Optimization', status='a'
+        )
+        self.legacy_assignment = assess_mod.Assignment.objects.create(
+            course=self.archived_course, teacher=self.teacher_faisal,
+            title='Punch Card Programming Lab', status='a'
+        )
+
+        assess_mod.Submission.objects.create(
+            assignment=self.active_assignment, student=self.student_asif,
+            file_url='https://storage.nitc.ac.in/sub/asif_nn.pdf', status='s' # Submitted
+        )
+
+        # Upload Materials (Active vs Archived)
+        self.active_material = course_mod.Material.objects.create(
+            course=self.published_course, teacher=self.teacher_faisal,
+            title='Backpropagation Mathematics Notes', type='d', status='a'
+        )
+        self.archived_material = course_mod.Material.objects.create(
+            course=self.published_course, teacher=self.teacher_faisal,
+            title='Obsolete Reference Document', type='d', status='i' # Inactive resource
+        )
+
+    def test_get_teachers_with_workload_aggregates_metrics_correctly(self):
+        """
+        Verify that the with-workload endpoint accurately rolls up multi-table 
+        subqueries into optimized structural metrics per teacher profile.
+        """
+        url = f"{self.base_url}with-workload/"
+        
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Find Dr. Faisal's analytics row from the collection response payload
+        target_row = next(item for item in response.data['results'] if item['id'] == self.teacher_faisal.id)
+        
+        # Verify the database subquery calculations matched our predefined setup boundaries
+        self.assertEqual(target_row['total_courses'], 1)       # Only 'Advanced Machine Learning' is status='p'
+        self.assertEqual(target_row['total_students'], 2)      # Both Asif and Meera are in that active course
+        self.assertEqual(target_row['total_assignments'], 1)   # Excludes the punch card assignment
+        self.assertEqual(target_row['pending_submissions'], 1) # Asif's submission requires review
+
+    def test_workload_metrics_exclude_inactive_course_structures(self):
+        """
+        Ensure metrics are not inflated by soft-deleted or archived course lines.
+        If we transition our active course to Archived status, metrics should immediately evaluate to 0.
+        """
+        self.published_course.status = 'a' # Mutate status to Archived
+        self.published_course.save()
+
+        url = f"{self.base_url}with-workload/"
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        target_row = next(item for item in response.data['results'] if item['id'] == self.teacher_faisal.id)
+        
+        # All subquery positions must cleanly drop to zero due to Coalesce optimization
+        self.assertEqual(target_row['total_courses'], 0)
+        self.assertEqual(target_row['total_students'], 0)
+        self.assertEqual(target_row['total_assignments'], 0)
+        self.assertEqual(target_row['pending_submissions'], 0)
+
+    def test_teacher_courses_endpoint_annotates_distinct_student_reach(self):
+        """
+        Verify nested courses view performs count tracking optimizations correctly 
+        and validates database query safety metrics via CaptureQueriesContext.
+        """
+        url = f"{self.base_url}{self.teacher_faisal.id}/courses/"
+        
+        with CaptureQueriesContext(connection=connection) as ctx:
+            response = self.client.get(url)
+            
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Dr. Faisal has 2 active course mappings, but only 1 points to a Published course
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['student_count'], 2)
+        # Ensure query optimization rules are upheld (prevents hidden loops over list records)
+        self.assertLessEqual(len(ctx.captured_queries), 4)
+
+    def test_teacher_materials_endpoint_resolves_soft_deleted_resources(self):
+        """
+        Verify the custom materials details method uses soft-delete manager overrides 
+        to accurately pull back archived files when filtering via query strings.
+        """
+        url = f"{self.base_url}{self.teacher_faisal.id}/materials/?status=i"
+        
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should cleanly swap query scopes to pull back the archived reference document
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['title'], 'Obsolete Reference Document')
