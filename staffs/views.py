@@ -55,6 +55,11 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     # Isolates parent teacher lookup from nested endpoint parameters
     def filter_queryset(self, queryset):
         if self.action in ['courses', 'materials', 'assignments']:
+            status_val = self.request.query_params.get('status')
+            # If a status parameter is passed but doesn't explicitly target inactive records ('i'),
+            # strictly confine the parent profile resolution lookup to active accounts.
+            if status_val and status_val != 'i':
+                return queryset.filter(status='a')
             return queryset
         return super().filter_queryset(queryset)
 
@@ -237,6 +242,10 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
     # Isolates parent department lookup from child filter query parameters
     def filter_queryset(self, queryset):
         if self.action == 'teachers':
+            status_val = self.request.query_params.get('status')
+            # Protects the parent department record lookup from unauthorized manager escalation
+            if status_val and status_val != 'i':
+                return queryset.filter(status='a')
             return queryset
         return super().filter_queryset(queryset)
 
