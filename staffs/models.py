@@ -23,14 +23,36 @@ class Teacher(SoftDeleteModel):
     last_name = models.CharField(max_length=100)
     dob = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
-    employee_code = models.CharField(max_length=50, unique=True)
+    employee_code = models.CharField(max_length=50)
     experience_years = models.PositiveIntegerField(default=0)
     contact_number = models.CharField(max_length=10, null=True, blank=True)
     emergency_contact_number = models.CharField(max_length=10, null=True, blank=True)
-    email_institutional = models.CharField(max_length=150, unique=True) 
+    email_institutional = models.CharField(max_length=150) 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
     profile_picture = models.CharField(max_length=255, blank=True, null=True)
     date_joined = models.DateField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=~models.Q(status='i'),
+                name='unique_active_teacher_user'
+            ),
+            models.UniqueConstraint(
+                fields=['employee_code'],
+                condition=~models.Q(status='i'),
+                name='unique_active_employee_code'
+            ),
+            models.UniqueConstraint(
+                fields=['email_institutional'],
+                condition=~models.Q(status='i'),
+                name='unique_active_email_institutional'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['status'])
+        ]
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} - ({self.employee_code})"
@@ -58,6 +80,19 @@ class UserQualification(SoftDeleteModel):
     qualification = models.ForeignKey(Qualification, on_delete=models.CASCADE)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
 
+    # Add an index on user and status
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'qualification'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_qualification'
+            )
+        ]
+
     def __str__(self):
         return f"User {self.user} - Qualification {self.qualification}"
 
@@ -83,6 +118,19 @@ class UserSpecialization(SoftDeleteModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     specialization = models.ForeignKey(Specialization, on_delete=models.CASCADE)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
+
+    # Add an index on user and status
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'specialization'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_specialization'
+            )
+        ]
 
     def __str__(self):
         return f"User {self.user} - Specialization {self.specialization}"
@@ -110,6 +158,19 @@ class UserDepartment(SoftDeleteModel):
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
 
+    # Add an index on user and status
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'department'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_department'
+            )
+        ]
+
     def __str__(self):
         return f"User {self.user} - Department {self.department}"
 
@@ -135,6 +196,19 @@ class UserDesignation(SoftDeleteModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     designation = models.ForeignKey(Designation, on_delete=models.CASCADE)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="a")
+
+    # Add an index on user and status
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'designation'],
+                condition=~models.Q(status='i'),
+                name='unique_active_user_designation'
+            )
+        ]
 
     def __str__(self):
         return f"User {self.user} - Designation {self.designation}"

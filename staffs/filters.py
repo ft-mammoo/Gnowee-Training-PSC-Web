@@ -1,0 +1,71 @@
+import django_filters
+from .models import (
+    Teacher, Department, Qualification, 
+    UserQualification, Specialization, UserSpecialization,
+    Designation, UserDesignation
+)
+from assessments.models import Assignment
+from courses.models import Material, Course
+
+class TeacherFilter(django_filters.FilterSet):
+    # Define filters for the Teacher model
+    date_joined = django_filters.DateFilter(field_name='date_joined', lookup_expr='exact')
+    class Meta:
+        model = Teacher
+        fields = ['status', 'gender', 'experience_years', 'date_joined']
+
+class TeacherCourseFilter(django_filters.FilterSet):
+    class Meta:
+        model = Course
+        fields = ['status']
+
+class TeacherMaterialFilter(django_filters.FilterSet):
+    class Meta:
+        model = Material
+        fields = ['course', 'type', 'status']
+
+class TeacherAssignmentFilter(django_filters.FilterSet):
+    class Meta:
+        model = Assignment
+        fields = ['course', 'due_date']
+
+class TeacherWorkloadFilter(django_filters.FilterSet):
+    class Meta:
+        model = Teacher
+        fields = ['status']
+
+class DepartmentFilter(django_filters.FilterSet):
+    class Meta:
+        model = Department
+        fields = ['status']
+
+class QualificationFilter(django_filters.FilterSet):
+    class Meta:
+        model = Qualification
+        fields = ['status']
+
+class UserQualificationFilter(django_filters.FilterSet):
+    class Meta:
+        model = UserQualification
+        fields = ['user', 'qualification', 'status']
+
+class SpecializationFilter(django_filters.FilterSet):
+    class Meta:
+        model = Specialization
+        fields = ['status']
+
+class UserSpecializationFilter(django_filters.FilterSet):
+    class Meta:
+        model = UserSpecialization
+        fields = ['user', 'specialization', 'status']
+
+class DesignationFilter(django_filters.FilterSet):
+    class Meta:
+        model = Designation
+        fields = ['status']
+
+class UserDesignationFilter(django_filters.FilterSet):
+    class Meta:
+        model = UserDesignation
+        fields = ['user', 'designation', 'status']
+
