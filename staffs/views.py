@@ -59,7 +59,7 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
             # If a status parameter is passed but doesn't explicitly target inactive records ('i'),
             # strictly confine the parent profile resolution lookup to active accounts.
             if status_val and status_val != 'i':
-                return queryset.filter(status='a')
+                return queryset.exclude(status='i')
             return queryset
         return super().filter_queryset(queryset)
 
@@ -248,7 +248,7 @@ class DepartmentViewSet(StatusManagerMixin, viewsets.ModelViewSet):
             status_val = self.request.query_params.get('status')
             # Protects the parent department record lookup from unauthorized manager escalation
             if status_val and status_val != 'i':
-                return queryset.filter(status='a')
+                return queryset.exclude(status='i')
             return queryset
         return super().filter_queryset(queryset)
 
