@@ -82,12 +82,15 @@ class TeacherViewSet(StatusManagerMixin, viewsets.ModelViewSet):
             to_attr='teacher_assignments'
         )
 
+        # Extract the status parameter from the query string, defaulting safely to published ('p')
+        status_val = request.query_params.get('status', 'p')
+
         # querying the Course table backwards through the join table.
         # using .annotate() to count active enrollments directly in PostgreSQL/SQLite.
         queryset = Course.objects.filter(
             course_teachers__teacher=teacher,
             course_teachers__status='a',
-            status='p' # Only include active Published courses in the list
+            status=status_val
         ).annotate(
             student_count=Count(
                 'enrollments',
