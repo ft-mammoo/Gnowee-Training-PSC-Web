@@ -411,3 +411,167 @@ class DepartmentAdministrationAPIEndpointTestCase(APITestCase):
             
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data['detail'], "This user is already active in this department.")
+
+class StandaloneMappingsAPIEndpointTestCase(APITestCase):
+    """
+    Integration tests for standalone master files (Qualifications, Specializations, Designations)
+    and user-specific relationship records. Validates recycling loops, state lookup guards, 
+    and multi-entity collection structures.
+    """
+
+    def setUp(self):
+        # Base API URL configurations
+        self.qual_url = '/qualifications/'
+        self.user_qual_url = '/user-qualifications/'
+
+        # Setup Global Master Records (Kerala & GCC dataset alignment)
+        self.active_phd = mod.Qualification.objects.create(
+            name='Ph.D. in Computer Science',
+            description='Doctoral degree from CUSAT Cochin',
+            status='a'
+        )
+        self.inactive_mtech = mod.Qualification.objects.create(
+            name='M.Tech in Legacy Systems',
+            description='Archived qualification course registry',
+            status='i'
+        )
+        self.active_spec = mod.Specialization.objects.create(
+            name='Distributed Ledger Technology',
+            description='Blockchain systems research domain',
+            status='a'
+        )
+        self.active_desig = mod.Designation.objects.create(
+            name='Associate Professor',
+            description='Senior faculty title grade',
+            status='a'
+        )
+
+        # Setup User Profiles (One Active Teacher, One Base User with no Profile)
+        self.user_aslam = User.objects.create_user(username='aslam_kasaragod', password='password123')
+        self.teacher_aslam = mod.Teacher.objects.create(
+            user=self.user_aslam,
+            first_name='Aslam',
+            last_name='Kozhikode',
+            employee_code='EMP-CS-9911',
+            email_institutional='aslam@nitc.ac.in',
+            status='a'
+        )
+
+        self.user_base_only = User.objects.create_user(username='regular_staff_member', password='password123')
+        # user_base_only deliberately has no Teacher profile record attached
+
+        # Setup Relational Mappings (Active vs Historical soft-deleted mapping)
+        self.historical_qual_mapping = mod.UserQualification.objects.create(
+            user=self.user_aslam,
+            qualification=self.active_phd,
+            status='i' # Deactivated historical mapping link
+        )
+
+    def test_list_global_entities_returns_active_only(self):
+        """
+        Verify that master collection list views scope execution 
+        to active records only, filtering out deprecated educational programs.
+        """
+        with CaptureQueriesContext(connection=connection) as ctx:
+            response = self.client.get(self.qual_url)
+            
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only render the active PhD entry, bypassing the inactive record
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['name'], 'Ph.D. in Computer Science')
+        # Verify query structure is direct and flat
+        self.assertLessEqual(len(ctx.captured_queries), 3)
+
+    def test_list_user_qualifications_with_inactive_status_filter(self):
+        """
+        Verify query filters switch model managers to unlock historical mapping rows.
+        """
+        response = self.client.get(f"{self.user_qual_url}?status=i")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should return the soft-deleted user-qualification assignment link
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['user'], self.user_aslam.id)
+
+    def test_create_user_qualification_success(self):
+        """
+        Verify building a pristine relationship mapping succeeds when pointing
+        to valid active instances.
+        """
+        # Create a clean active qualification and active user profile first
+        fresh_qual = mod.Qualification.objects.create(name='M.Phil in Computing', status='a')
+        user_clean = User.objects.create_user(username='vinod_dr', password='password123')
+        mod.Teacher.objects.create(
+            user=user_clean, first_name='Vinod', last_name='Kumar',
+            employee_code='EMP-EC-4022', email_institutional='vinod@nitc.ac.in', status='a'
+        )
+
+        payload = {
+            'user': user_clean.id,
+            'qualification': fresh_qual.id,
+            'status': 'a'
+        }
+        response = self.client.post(self.user_qual_url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(mod.UserQualification.objects.filter(user=user_clean, status='a').count(), 1)
+
+    def test_create_user_qualification_fails_without_active_teacher_profile(self):
+        """
+        Verify the serialization engine prevents assigning faculty metadata 
+        to account entities that lack an active Teacher profile row.
+        """
+        payload = {
+            'user': self.user_base_only.id,
+            'qualification': self.active_phd.id,
+            'status': 'a'
+        }
+        response = self.client.post(self.user_qual_url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_user_qualification_fails_on_inactive_global_entity(self):
+        """
+        Verify relationships cannot link active profiles to soft-deleted 
+        or inactive master file dictionary positions.
+        """
+        payload = {
+            'user': self.user_aslam.id,
+            'qualification': self.inactive_mtech.id, # Points to status='i' row
+            'status': 'a'
+        }
+        response = self.client.post(self.user_qual_url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_user_qualification_fails_on_duplicate_active(self):
+        """
+        Ensure constraint assertions block concurrent active assignments 
+        of identical academic records onto the same user.
+        """
+        # Establish an active mapping line first
+        fresh_qual = mod.Qualification.objects.create(name='B.Tech CSE', status='a')
+        mod.UserQualification.objects.create(user=self.user_aslam, qualification=fresh_qual, status='a')
+
+        payload = {
+            'user': self.user_aslam.id,
+            'qualification': fresh_qual.id,
+            'status': 'a'
+        }
+        response = self.client.post(self.user_qual_url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_partial_update_reactivates_user_qualification(self):
+        """
+        Verify state machine operations handle reactivation transitions safely 
+        via single field mutations.
+        """
+        url = f"{self.user_qual_url}{self.historical_qual_mapping.id}/?status=i"
+        payload = {'status': 'a'}
+        
+        response = self.client.patch(url, data=payload, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.historical_mapping.refresh_from_db() if hasattr(self, 'historical_mapping') else self.historical_qual_mapping.refresh_from_db()
+        self.assertEqual(self.historical_qual_mapping.status, 'a')
