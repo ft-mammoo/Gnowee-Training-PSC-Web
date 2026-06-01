@@ -17,16 +17,15 @@ class Assignment(SoftDeleteModel):
 
 #Submition of assignment by students
 class Submission(SoftDeleteModel):
-    STATUS_CHOICES = [
-        ("s", "Submitted"),
-        ("l", "Late"),
-        ("g", "Graded"),
-    ]
+    class SubmissionStatus(models.TextChoices):
+        SUBMITTED = "s", "Submitted"
+        LATE = "l", "Late"
+        GRADED = "g", "Graded"
     assignment = models.ForeignKey('Assignment', on_delete=models.CASCADE)
     student = models.ForeignKey('students.Student', on_delete=models.CASCADE)
     file_url = models.CharField(max_length=255)
     submitted_date = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="s")
+    status = models.CharField(max_length=1, choices=SubmissionStatus.choices, default=SubmissionStatus.SUBMITTED)
 
     def __str__(self):
         return f"Submission {self.id}: Assignment {self.assignment_id} by Student {self.student_id}"
@@ -60,14 +59,13 @@ class Exams(SoftDeleteModel):
         return f"{self.title} - (Course_ID:{self.course_id})"
 
 class ExamQuestions(SoftDeleteModel):
-    QUESTION_TYPE_CHOICES = (
-        ('s', 'Single'),
-        ('m', 'Multiple'),
-        ('t', 'Text'),
-    )
+    class QuestionType(models.TextChoices):
+        SINGLE = 's', 'Single'
+        MULTIPLE = 'm', 'Multiple'
+        TEXT = 't', 'Text'
     category = models.ForeignKey('QuestionCategories', on_delete=models.SET_NULL, null=True, blank=True)
     question_text = models.TextField()
-    question_type = models.CharField(max_length=20, choices=QUESTION_TYPE_CHOICES)
+    question_type = models.CharField(max_length=20, choices=QuestionType.choices)
     marks = models.DecimalField(max_digits=5, decimal_places=2)
 
     def __str__(self):
