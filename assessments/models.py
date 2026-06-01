@@ -71,7 +71,7 @@ class ExamQuestions(SoftDeleteModel):
     marks = models.DecimalField(max_digits=5, decimal_places=2)
 
     def __str__(self):
-        return f"Question {self.id} for Exam {self.exam_id}"
+        return f"Question {self.id}: {self.question_text[:30]}..."
     
 class QuestionOptions(SoftDeleteModel):
     question = models.ForeignKey('ExamQuestions', on_delete=models.CASCADE, related_name='options')
@@ -109,7 +109,7 @@ class ExamAnswers(SoftDeleteModel):
     answer_text = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"Answer {self.id}: Exam {self.exam_id} by Student {self.student_id} for Question {self.question_id}"
+        return f"Answer {self.id} for Submission {self.exam_submission_id} - Question {self.question_id}"
 
 class ExamAnswerOptions(SoftDeleteModel):
     answer = models.ForeignKey('ExamAnswers', on_delete=models.CASCADE)
@@ -119,7 +119,7 @@ class ExamAnswerOptions(SoftDeleteModel):
         unique_together = ('answer', 'option')
 
     def __str__(self):
-        return f"Selected Option {self.option_id} for Answer {self.exam_answer_id}"
+        return f"Selected Option {self.option_id} for Answer {self.answer_id}"
 
 class ExamReviews(SoftDeleteModel):
     exam_submission = models.ForeignKey('ExamSubmissions', on_delete=models.CASCADE)
@@ -128,4 +128,4 @@ class ExamReviews(SoftDeleteModel):
     feedback = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"Review {self.id}: Exam Submission {self.exam_submission_id} reviewed by Teacher {self.reviewed_by_id}"
+        return f"Review {self.id}: Exam Submission {self.exam_submission_id} reviewed by Teacher {self.graded_by_id}"
