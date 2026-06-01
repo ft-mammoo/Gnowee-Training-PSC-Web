@@ -79,10 +79,11 @@ class AssignmentNestedSerializer(BaseSerializer):
 class ExamNestedSerializer(BaseSerializer):
     duration = serializers.SerializerMethodField()
     question_count = serializers.IntegerField(read_only=True)
+    questions = serializers.SerializerMethodField()
 
     class Meta(BaseSerializer.Meta):
         model = models.Exams
-        fields = ['id', 'title', 'description', 'duration', 'start_time', 'end_time', 'total_marks', 'question_count']
+        fields = ['id', 'title', 'description', 'duration', 'start_time', 'end_time', 'total_marks', 'question_count', 'questions']
     
     def get_duration(self, obj):
         if obj.start_time and obj.end_time:
@@ -92,3 +93,21 @@ class ExamNestedSerializer(BaseSerializer):
             minutes, seconds = divmod(remainder, 60)
             return f"{hours:02}:{minutes:02}:{seconds:02}"
         return "00:00:00"
+
+    def get_questions(self, obj):
+        # N+1 Query Prevention
+        # select_related fetches the linked question and its category in the same SQL join.
+        # prefetch_related fetches all the options for those questions in one bulk query.
+        mappings = obj.exam_questions.filter(
+            status='a'
+        ).select_related(
+            'question', 'question__category'
+        ).prefetch_related(
+            'question__options'
+        )
+        
+        # Extract the actual active question objects from the mapping records
+        questions = [mapping.question for mapping in mappings if mapping.question.status == 'a']
+        
+        # Pass the extracted questions into the foundation serializer we built in Step 4
+        return ExamQuestionSerializer(questions, many=True).data
