@@ -87,7 +87,13 @@ class ExamQuestionsMapping(SoftDeleteModel):
     question = models.ForeignKey('ExamQuestions', on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('exam', 'question')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['exam', 'question'],
+                condition=models.Q(status='a'), # Only enforce uniqueness for active records
+                name='unique_exam_question_mapping'
+            )
+        ]
 
     def __str__(self):
         return f"Exam {self.exam_id} - Question {self.question_id}"
@@ -98,7 +104,13 @@ class ExamSubmissions(SoftDeleteModel):
     submission_time = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ('exam', 'student')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['exam', 'student'],
+                condition=models.Q(status='a'), # Only enforce uniqueness for active records
+                name='unique_exam_student_submission'
+            )
+        ]
 
     def __str__(self):
         return f"Exam Submission {self.id}: Exam {self.exam_id} by Student {self.student_id}"
@@ -116,7 +128,13 @@ class ExamAnswerOptions(SoftDeleteModel):
     option = models.ForeignKey('QuestionOptions', on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('answer', 'option')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['answer', 'option'],
+                condition=models.Q(status='a'), # Only enforce uniqueness for active records
+                name='unique_answer_option'
+            )
+        ]
 
     def __str__(self):
         return f"Selected Option {self.option_id} for Answer {self.answer_id}"
