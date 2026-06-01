@@ -19,25 +19,29 @@ class SubmissionGradeSerializer(BaseSerializer):
         model = models.SubmissionGrade
         fields = '__all__'
 
-class QuestionCategoriesSerializer(BaseSerializer):
+class QuestionCategorySerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.QuestionCategories
-        fields = '__all__'
+        fields = ['id', 'name', 'description']
 
 class ExamsSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.Exams
         fields = '__all__'
 
-class ExamQuestionsSerializer(BaseSerializer):
-    class Meta(BaseSerializer.Meta):
-        model = models.ExamQuestions
-        fields = '__all__'
-
 class QuestionOptionsSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
         model = models.QuestionOptions
-        fields = '__all__'
+        fields = ['id', 'option_code', 'option_text', 'is_correct']
+
+class ExamQuestionSerializer(BaseSerializer):
+    # 'related_name="options"' in models.py will automatically fetch all linked options for this question.
+    options = QuestionOptionsSerializer(many=True, read_only=True)
+    category = QuestionCategorySerializer(read_only=True)
+
+    class Meta(BaseSerializer.Meta):
+        model = models.ExamQuestions
+        fields = ['id', 'category', 'question_text', 'question_type', 'marks', 'options']
 
 class ExamQuestionsMappingSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):
