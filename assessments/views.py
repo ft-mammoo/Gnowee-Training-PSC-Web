@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from rest_framework.filters import SearchFilter
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.decorators import action
@@ -19,9 +20,28 @@ class ExamViewSet(StatusManagerMixin, ModelViewSet):
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
             return serializer.ExamNestedSerializer
+        
+        # Explicitly route the serializers for our custom action
+        if self.action == 'questions':
+            if self.request and self.request.method == 'POST':
+                return serializer.ExamQuestionsMappingSerializer
+            return serializer.ExamQuestionSerializer
+            
         return serializer.ExamsSerializer
 
-    @action(methods=["GET", "POST"], detail=True)
+    @extend_schema(
+        methods=['GET'],
+        responses={200: serializer.ExamQuestionSerializer(many=True)},
+        description="Get all active questions mapped to this specific exam."
+    )
+    @extend_schema(
+        methods=['POST'],
+        request=serializer.ExamQuestionsMappingSerializer,
+        responses={200: serializer.ExamQuestionsMappingSerializer, 201: serializer.ExamQuestionsMappingSerializer},
+        description="Map an existing question to this exam by providing the question ID."
+    )
+    # Block ViewSet inheritance by passing empty filter_backends and None for pagination
+    @action(methods=["GET", "POST"], detail=True, pagination_class=None, filter_backends=[])
     def questions(self, request, pk=None):
         exam = get_object_or_404(self.get_queryset(), pk=pk)
 
