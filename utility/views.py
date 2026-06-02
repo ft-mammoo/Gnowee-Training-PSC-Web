@@ -53,6 +53,15 @@ class DesignationPagination(BaseViewPagination):
 class UserDesignationPagination(BaseViewPagination):
     page_size = 50
 
+class Pagination20(BaseViewPagination):
+    page_size = 20
+
+class Pagination30(BaseViewPagination):
+    page_size = 30
+
+class Pagination100(BaseViewPagination):
+    page_size = 100
+
 class StatusManagerMixin:
     # This mixin allows ViewSets to dynamically switch between the default manager and a custom 'all_objects' manager based on the presence of a 'status' query parameter.
     def get_status_manager(self, model):
