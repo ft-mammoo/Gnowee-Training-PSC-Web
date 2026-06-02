@@ -105,3 +105,45 @@ class QuestionOptionViewSet(StatusManagerMixin, ModelViewSet):
     pagination_class = Pagination100
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['question', 'is_correct']
+
+class ExamSubmissionViewSet(StatusManagerMixin, ModelViewSet):
+    queryset = models.ExamSubmissions.objects.all().order_by('-id')
+    serializer_class = serializer.ExamSubmissionsSerializer
+    pagination_class = Pagination30
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['exam', 'student']
+
+    # We override the create method to implement the logic for reactivating 
+    # a soft-deleted submission if the same student tries to start the same exam again.
+    def create(self, request, *args, **kwargs):
+        exam_id = request.data.get('exam')
+        student_id = request.data.get('student')
+
+        if not exam_id or not student_id:
+            return Response(
+                {"detail": "Both exam and student IDs are required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        submission = models.ExamSubmissions.all_objects.filter(
+            exam_id=exam_id, student_id=student_id
+        ).first()
+
+        if submission:
+            if submission.status == 'a':
+                return Response(
+                    {"detail": "This student has already started this exam."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Reactivate the soft-deleted submission natively
+            submission.activate()
+            se = self.get_serializer(submission, context={'request': request})
+            return Response(data=se.data, status=status.HTTP_200_OK)
+
+        # Standard creation
+        se = self.get_serializer(data=request.data, context={'request': request})
+        if se.is_valid():
+            se.save()
+            return Response(data=se.data, status=status.HTTP_201_CREATED)
+        return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
