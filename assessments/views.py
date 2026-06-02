@@ -147,3 +147,10 @@ class ExamSubmissionViewSet(StatusManagerMixin, ModelViewSet):
             se.save()
             return Response(data=se.data, status=status.HTTP_201_CREATED)
         return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class ExamAnswerViewSet(StatusManagerMixin, ModelViewSet):
+    queryset = models.ExamAnswers.objects.all().order_by('-id')
+    serializer_class = serializer.ExamAnswersSerializer
+    pagination_class = Pagination30
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['exam_submission', 'question']

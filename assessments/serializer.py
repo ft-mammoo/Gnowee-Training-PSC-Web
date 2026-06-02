@@ -1,3 +1,4 @@
+from django.db import transaction
 from datetime import timedelta
 from rest_framework import serializers
 from assessments import models
@@ -54,9 +55,45 @@ class ExamSubmissionsSerializer(BaseSerializer):
         fields = '__all__'
 
 class ExamAnswersSerializer(BaseSerializer):
+    # Write-only field allows the frontend to send a list of option IDs in the same payload
+    selected_options = serializers.PrimaryKeyRelatedField(
+        queryset=models.QuestionOptions.objects.all(),
+        many=True,
+        write_only=True,
+        required=False
+    )
+
     class Meta(BaseSerializer.Meta):
         model = models.ExamAnswers
-        fields = '__all__'
+        fields = ['id', 'exam_submission', 'question', 'answer_text', 'selected_options', 'created_date', 'status']
+
+    # Override the create method to handle the logic of saving selected options along with the answer
+    def create(self, validated_data):
+        selected_options = validated_data.pop('selected_options', [])
+        
+        with transaction.atomic():
+            exam_submission = validated_data.get('exam_submission')
+            question = validated_data.get('question')
+            
+            # If the student changes their answer, clean up the old active ones first
+            existing_answers = models.ExamAnswers.objects.filter(
+                exam_submission=exam_submission, 
+                question=question
+            )
+            for old_answer in existing_answers:
+                old_answer.delete()
+            
+            # Create the new base Answer record
+            answer = super().create(validated_data)
+            
+            # Bulk create the linked options highly efficient, hits the DB exactly once
+            if selected_options:
+                models.ExamAnswerOptions.objects.bulk_create([
+                    models.ExamAnswerOptions(answer=answer, option=option)
+                    for option in selected_options
+                ])
+                
+            return answer
 
 class ExamAnswerOptionsSerializer(BaseSerializer):
     class Meta(BaseSerializer.Meta):

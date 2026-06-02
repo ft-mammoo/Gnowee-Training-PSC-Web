@@ -8,6 +8,7 @@ router.register('questions', views.QuestionViewSet, basename='question')
 router.register('question-options', views.QuestionOptionViewSet, basename='question-option')
 router.register('exam-question-mappings', views.ExamQuestionMappingViewSet, basename='exam-question-mapping')
 router.register('exam-submissions', views.ExamSubmissionViewSet, basename='exam-submission')
+router.register('exam-answers', views.ExamAnswerViewSet, basename='exam-answer')
 
 urlpatterns = [
     path('', include(router.urls)),
