@@ -154,3 +154,10 @@ class ExamAnswerViewSet(StatusManagerMixin, ModelViewSet):
     pagination_class = Pagination30
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['exam_submission', 'question']
+
+class QuestionCategoryViewSet(StatusManagerMixin, ModelViewSet):
+    queryset = models.QuestionCategories.objects.all().order_by('id')
+    serializer_class = serializer.QuestionCategorySerializer
+    pagination_class = Pagination30
+    filter_backends = [SearchFilter]
+    search_fields = ['name']
