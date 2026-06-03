@@ -51,8 +51,9 @@ class Exams(SoftDeleteModel):
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
+    duration = models.DurationField(null=True, blank=True) # Duration Timer
+    start_time = models.DateTimeField() # Window Open
+    end_time = models.DateTimeField() # Window Close
     total_marks = models.IntegerField()
 
     def __str__(self):
@@ -117,6 +118,15 @@ class ExamAnswers(SoftDeleteModel):
     exam_submission = models.ForeignKey('ExamSubmissions', on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey('ExamQuestions', on_delete=models.CASCADE)
     answer_text = models.TextField(blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['exam_submission', 'question'],
+                condition=models.Q(status='a'), # Only enforce uniqueness for active records
+                name='unique_active_exam_answer'
+            )
+        ]
 
     def __str__(self):
         return f"Answer {self.id} for Submission {self.exam_submission_id} - Question {self.question_id}"
