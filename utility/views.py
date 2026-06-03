@@ -56,6 +56,9 @@ class UserDesignationPagination(BaseViewPagination):
 class Pagination20(BaseViewPagination):
     page_size = 20
 
+class Pagination25(PageNumberPagination):
+    page_size = 25
+
 class Pagination30(BaseViewPagination):
     page_size = 30
 

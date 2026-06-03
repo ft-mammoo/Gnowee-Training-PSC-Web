@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
@@ -7,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status, mixins
 
-from utility.views import Pagination20, Pagination30, Pagination100, StatusManagerMixin
+from utility.views import Pagination20, Pagination25, Pagination30, Pagination100, StatusManagerMixin
 from assessments import models, serializer
 
 class ExamViewSet(StatusManagerMixin, ModelViewSet):
@@ -161,3 +162,53 @@ class QuestionCategoryViewSet(StatusManagerMixin, ModelViewSet):
     pagination_class = Pagination30
     filter_backends = [SearchFilter]
     search_fields = ['name']
+
+class AssignmentViewSet(StatusManagerMixin, ModelViewSet):
+    queryset = models.Assignment.objects.all().order_by('-id')
+    pagination_class = Pagination25
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['course', 'teacher', 'due_date', 'created_date']
+    search_fields = ['title', 'description']
+
+    def get_serializer_class(self):
+        # Flat writes (POST/PATCH), nested reads (GET)
+        if self.action in ['list', 'retrieve']:
+            return serializer.AssignmentNestedSerializer
+        return serializer.AssignmentSerializer
+
+    @extend_schema(
+        responses={200: serializer.SubmissionSerializer(many=True)},
+        description="Get all submissions for a specific assignment."
+    )
+    @action(methods=['GET'], detail=True, pagination_class=Pagination30)
+    def submissions(self, request, pk=None):
+        assignment = get_object_or_404(self.get_queryset(), pk=pk)
+        
+        # Base query optimized to prevent N+1 lookup on the student data
+        qs = models.Submission.objects.filter(
+            assignment=assignment
+        ).select_related('student__user').order_by('-id')
+        
+        # Clean, explicit manual filtering for the custom action
+        status_val = request.query_params.get('status')
+        if status_val:
+            qs = qs.filter(status=status_val)
+            
+        submitted_date = request.query_params.get('submitted_date')
+        if submitted_date:
+            qs = qs.filter(submitted_date__date=submitted_date)
+            
+        search_val = request.query_params.get('search')
+        if search_val:
+            qs = qs.filter(
+                Q(student__user__first_name__icontains=search_val) | 
+                Q(student__user__last_name__icontains=search_val)
+            )
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            se = serializer.SubmissionSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(se.data)
+            
+        se = serializer.SubmissionSerializer(qs, many=True, context={'request': request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
