@@ -97,7 +97,7 @@ class ExamViewSet(StatusManagerMixin, ModelViewSet):
 
 
 class QuestionViewSet(StatusManagerMixin, ModelViewSet):
-    queryset = models.ExamQuestions.objects.all().order_by("id")
+    queryset = models.ExamQuestions.objects.select_related("category").prefetch_related("options").all().order_by("id")
     serializer_class = serializer.ExamQuestionSerializer
     pagination_class = Pagination30
     filter_backends = [DjangoFilterBackend, SearchFilter]
