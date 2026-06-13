@@ -171,11 +171,19 @@ class QuestionCategoryViewSet(StatusManagerMixin, ModelViewSet):
 
 
 class AssignmentViewSet(StatusManagerMixin, ModelViewSet):
-    queryset = models.Assignment.objects.all().order_by("-id")
+    queryset = models.Assignment.objects.all()
     pagination_class = Pagination25
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["course", "teacher", "due_date", "created_date"]
     search_fields = ["title", "description"]
+
+    def get_queryset(self):
+        """
+        1. Call super() to let the mixin evaluate ?status=i and pick the right manager.
+        2. Chain select_related to prevent N+1 queries on the nested teacher data.
+        """
+        qs = super().get_queryset()
+        return qs.select_related("teacher__user").order_by("-id")
 
     def get_serializer_class(self):
         # Flat writes (POST/PATCH), nested reads (GET)
