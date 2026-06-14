@@ -254,3 +254,32 @@ class AssignmentViewSet(StatusManagerMixin, ModelViewSet):
 
         se = serializer.SubmissionSerializer(qs, many=True, context={"request": request})
         return Response(data=se.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        responses={200: serializer.SubmissionSerializer(many=True)},
+        description="Get all pending (ungraded) submissions for a specific assignment.",
+    )
+    @action(methods=["GET"], detail=True, url_path="submissions/pending", pagination_class=Pagination30)
+    def pending_submissions(self, request, pk=None):
+        assignment = get_object_or_404(self.get_queryset(), pk=pk)
+
+        # Filter strictly for 's' (Submitted) and 'l' (Late).
+        qs = (
+            models.Submission.objects.filter(assignment=assignment, status__in=["s", "l"])
+            .select_related("student__user")
+            .order_by("-id")
+        )
+
+        search_val = request.query_params.get("search")
+        if search_val:
+            qs = qs.filter(
+                Q(student__user__first_name__icontains=search_val) | Q(student__user__last_name__icontains=search_val)
+            )
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            se = serializer.SubmissionSerializer(page, many=True, context={"request": request})
+            return self.get_paginated_response(se.data)
+
+        se = serializer.SubmissionSerializer(qs, many=True, context={"request": request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
