@@ -2,11 +2,11 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from assessments import models, serializer
 from utility.views import Pagination20, Pagination25, Pagination30, Pagination100, StatusManagerMixin
@@ -113,15 +113,30 @@ class QuestionOptionViewSet(StatusManagerMixin, ModelViewSet):
     filterset_fields = ["question", "is_correct"]
 
 
-class ExamSubmissionViewSet(StatusManagerMixin, ModelViewSet):
-    queryset = models.ExamSubmissions.objects.all().order_by("-id")
+class ExamSubmissionViewSet(
+    StatusManagerMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, GenericViewSet
+):
+    """
+    Restricted to List, Retrieve, and Create operations only.
+    No updates or deletes allowed on submissions via the API.
+    """
+
+    queryset = models.ExamSubmissions.objects.all()
     serializer_class = serializer.ExamSubmissionsSerializer
     pagination_class = Pagination30
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["exam", "student"]
 
-    # We override the create method to implement the logic for reactivating
-    # a soft-deleted submission if the same student tries to start the same exam again.
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Optimized with select_related to prevent N+1 on nested exam/student reads
+        return qs.select_related("exam", "student__user").order_by("-id")
+
+    """
+    We override the create method to implement the logic for reactivating
+    a soft-deleted submission if the same student tries to start the same exam again.
+    """
+
     def create(self, request, *args, **kwargs):
         exam_id = request.data.get("exam")
         student_id = request.data.get("student")
@@ -140,7 +155,6 @@ class ExamSubmissionViewSet(StatusManagerMixin, ModelViewSet):
                     {"detail": "This student has already started this exam."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             # Reactivate the soft-deleted submission natively
             submission.activate()
             se = self.get_serializer(submission, context={"request": request})
@@ -151,23 +165,39 @@ class ExamSubmissionViewSet(StatusManagerMixin, ModelViewSet):
         if se.is_valid():
             se.save()
             return Response(data=se.data, status=status.HTTP_201_CREATED)
+
         return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ExamAnswerViewSet(StatusManagerMixin, ModelViewSet):
-    queryset = models.ExamAnswers.objects.all().order_by("-id")
+class ExamAnswerViewSet(StatusManagerMixin, mixins.CreateModelMixin, GenericViewSet):
+    """
+    Restricted strictly to POST (Create) operation only.
+    No listing, retrieving, updating, or deleting of answers via the API.
+    """
+
+    queryset = models.ExamAnswers.objects.all()
     serializer_class = serializer.ExamAnswersSerializer
-    pagination_class = Pagination30
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["exam_submission", "question"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.order_by("-id")
 
 
-class QuestionCategoryViewSet(StatusManagerMixin, ModelViewSet):
-    queryset = models.QuestionCategories.objects.all().order_by("id")
+class QuestionCategoryViewSet(StatusManagerMixin, mixins.ListModelMixin, mixins.CreateModelMixin, GenericViewSet):
+    """
+    Restricted strictly to GET (List) and POST (Create) operations only.
+    No updates or deletes allowed on categories via the API
+    """
+
+    queryset = models.QuestionCategories.objects.all()
     serializer_class = serializer.QuestionCategorySerializer
     pagination_class = Pagination30
     filter_backends = [SearchFilter]
     search_fields = ["name"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.order_by("-id")
 
 
 class AssignmentViewSet(StatusManagerMixin, ModelViewSet):
