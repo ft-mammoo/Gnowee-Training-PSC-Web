@@ -109,3 +109,78 @@ class ExamSubmissionAPITestCase(APITestCase):
         self.assertEqual(self.client.put(self.detail_url, {}).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
         self.assertEqual(self.client.patch(self.detail_url, {}).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
         self.assertEqual(self.client.delete(self.detail_url).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class ExamNestedSubmissionsAPITestCase(APITestCase):
+    """
+    Integration tests specifically for the custom 'submissions' endpoint on ExamViewSet.
+    Verifies nested data retrieval, filtering, and N+1 query limits.
+    """
+
+    def setUp(self):
+        self.course = Course.objects.create(title="Hardware Architecture", status="p")
+        self.exam = Exams.objects.create(
+            course=self.course,
+            title="Final",
+            start_time=timezone.now(),
+            end_time=timezone.now() + timedelta(hours=2),
+            total_marks=100,
+            status="a",
+        )
+
+        self.stu1 = Student.objects.create(
+            user=User.objects.create_user(username="babbage", password="123"),
+            first_name="Charles",
+            last_name="Babbage",
+            date_of_birth="1791-12-26",
+            gender="m",
+            contact_number="111",
+            emergency_contact_name="None",
+            emergency_contact_number="911",
+            status="a",
+            date_joined=date.today(),
+        )
+        self.stu2 = Student.objects.create(
+            user=User.objects.create_user(username="turing", password="123"),
+            first_name="Alan",
+            last_name="Turing",
+            date_of_birth="1912-06-23",
+            gender="m",
+            contact_number="222",
+            emergency_contact_name="None",
+            emergency_contact_number="911",
+            status="a",
+            date_joined=date.today(),
+        )
+
+        self.sub1 = ExamSubmissions.objects.create(exam=self.exam, student=self.stu1, status="a")
+        self.sub2 = ExamSubmissions.objects.create(exam=self.exam, student=self.stu2, status="a")
+
+        self.nested_url = reverse("exam-submissions", kwargs={"pk": self.exam.id})
+
+    def test_get_nested_submissions_with_n_plus_one_check(self):
+        """Verify the endpoint returns all submissions for the exam efficiently."""
+        with CaptureQueriesContext(connection=connection) as ctx:
+            response = self.client.get(self.nested_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+        # 1 COUNT query, 1 SELECT query with JOINs
+        self.assertLessEqual(len(ctx.captured_queries), 3)
+
+    def test_nested_submissions_student_filter(self):
+        """Verify query parameter filtering isolates a specific student."""
+        response = self.client.get(f"{self.nested_url}?student={self.stu1.id}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["student"], self.stu1.id)
+
+    def test_nested_submissions_date_filter(self):
+        """Verify submission_time filtering operates correctly on the date part."""
+        today_str = date.today().strftime("%Y-%m-%d")
+        response = self.client.get(f"{self.nested_url}?submission_time={today_str}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
