@@ -95,6 +95,35 @@ class ExamViewSet(StatusManagerMixin, ModelViewSet):
                 return Response(data=se.data, status=status.HTTP_201_CREATED)
             return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        methods=["DELETE"],
+        responses={204: None},
+        description="Remove a question from an exam (soft delete the mapping).",
+    )
+    @action(
+        methods=["DELETE"],
+        detail=True,
+        url_path=r"questions/(?P<question_id>\d+)",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def remove_question(self, request, pk=None, question_id=None):
+        exam = get_object_or_404(self.get_queryset(), pk=pk)
+
+        # Look up the active mapping
+        mapping = models.ExamQuestionsMapping.objects.filter(exam=exam, question_id=question_id, status="a").first()
+
+        if not mapping:
+            return Response(
+                {"detail": "Active mapping not found for this exam and question."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Execute soft-delete
+        mapping.status = "i"
+        mapping.save(update_fields=["status"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class QuestionViewSet(StatusManagerMixin, ModelViewSet):
     queryset = models.ExamQuestions.objects.select_related("category").prefetch_related("options").all().order_by("id")
