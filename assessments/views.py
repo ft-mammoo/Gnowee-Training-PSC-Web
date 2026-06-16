@@ -124,6 +124,39 @@ class ExamViewSet(StatusManagerMixin, ModelViewSet):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(
+        responses={200: serializer.ExamSubmissionsSerializer(many=True)},
+        description="Get all submissions for a specific exam.",
+    )
+    @action(methods=["GET"], detail=True, pagination_class=Pagination30)
+    def submissions(self, request, pk=None):
+        exam = get_object_or_404(self.get_queryset(), pk=pk)
+
+        # Base query optimized to prevent N+1 lookup on the nested student/user data
+        qs = (
+            models.ExamSubmissions.objects.filter(exam=exam, status="a")
+            .select_related("student__user")
+            .order_by("-id")
+        )
+
+        # Custom filtering mapped from API spec requirements
+        student_id = request.query_params.get("student")
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+
+        submission_time = request.query_params.get("submission_time")
+        if submission_time:
+            # Casts the datetime field to a date for clean string matching (YYYY-MM-DD)
+            qs = qs.filter(submission_time__date=submission_time)
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            se = serializer.ExamSubmissionsSerializer(page, many=True, context={"request": request})
+            return self.get_paginated_response(se.data)
+
+        se = serializer.ExamSubmissionsSerializer(qs, many=True, context={"request": request})
+        return Response(data=se.data, status=status.HTTP_200_OK)
+
 
 class QuestionViewSet(StatusManagerMixin, ModelViewSet):
     queryset = models.ExamQuestions.objects.select_related("category").prefetch_related("options").all().order_by("id")
