@@ -6,11 +6,12 @@ from assessments import views
 router = SimpleRouter()
 router.register("assignments", views.AssignmentViewSet, basename="assignment")
 router.register("exams", views.ExamViewSet, basename="exam")
-router.register("questions", views.QuestionViewSet, basename="question")
-router.register("question-options", views.QuestionOptionViewSet, basename="question-option")
-router.register("question-categories", views.QuestionCategoryViewSet, basename="question-category")
-router.register("exam-submissions", views.ExamSubmissionViewSet, basename="exam-submission")
 router.register("exam-answers", views.ExamAnswerViewSet, basename="exam-answer")
+router.register("exam-submissions", views.ExamSubmissionViewSet, basename="exam-submission")
+router.register("questions", views.QuestionViewSet, basename="question")
+router.register("question-categories", views.QuestionCategoryViewSet, basename="question-category")
+router.register("question-options", views.QuestionOptionViewSet, basename="question-option")
+router.register("submissions", views.SubmissionViewSet, basename="submission")
 
 urlpatterns = [
     path("", include(router.urls)),

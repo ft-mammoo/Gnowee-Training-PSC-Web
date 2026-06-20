@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
@@ -8,7 +9,7 @@ from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from assessments import models, serializer
+from assessments import filters, models, serializer
 from utility.views import Pagination20, Pagination25, Pagination30, Pagination100, StatusManagerMixin
 
 
@@ -345,3 +346,54 @@ class AssignmentViewSet(StatusManagerMixin, ModelViewSet):
 
         se = serializer.SubmissionSerializer(qs, many=True, context={"request": request})
         return Response(data=se.data, status=status.HTTP_200_OK)
+
+
+class SubmissionViewSet(StatusManagerMixin, ModelViewSet):
+    """
+    Standard CRUD operations for Assignment Submissions.
+    Enforces deadline checks on creation and blocks updates on graded submissions.
+    """
+
+    queryset = models.Submission.objects.all()
+    serializer_class = serializer.SubmissionSerializer
+    pagination_class = Pagination30
+
+    # Use the dedicated filter class instead of raw filterset_fields
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = filters.SubmissionFilter
+
+    def get_queryset(self):
+        # Clean, optimized N+1 protection. No manual query param parsing here.
+        qs = super().get_queryset()
+        return qs.select_related("assignment", "student__user").order_by("-id")
+
+    def create(self, request, *args, **kwargs):
+        assignment_id = request.data.get("assignment")
+
+        if assignment_id:
+            assignment = get_object_or_404(models.Assignment, id=assignment_id)
+
+            # Deadline enforcement.
+            current_date = timezone.now().date()
+            if assignment.due_date and assignment.due_date < current_date:
+                return Response({"detail": "Submission deadline has passed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # Prevent a student from altering a submission after a teacher has graded it
+        if instance.status == "g":
+            return Response({"detail": "Cannot update a graded submission."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # Prevent a student from deleting a submission after a teacher has graded it
+        if instance.status == "g":
+            return Response({"detail": "Cannot delete a graded submission."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return super().destroy(request, *args, **kwargs)
