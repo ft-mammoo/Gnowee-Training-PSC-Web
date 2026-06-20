@@ -1,6 +1,6 @@
 import django_filters
 
-from assessments.models import Submission, SubmissionGrade
+from assessments.models import ExamReviews, Submission, SubmissionGrade
 
 
 class SubmissionFilter(django_filters.FilterSet):
@@ -19,3 +19,9 @@ class SubmissionGradeFilter(django_filters.FilterSet):
     class Meta:
         model = SubmissionGrade
         fields = ["submission", "graded_by", "created_date"]
+
+
+class ExamReviewFilter(django_filters.FilterSet):
+    class Meta:
+        model = ExamReviews
+        fields = ["exam_submission", "graded_by"]

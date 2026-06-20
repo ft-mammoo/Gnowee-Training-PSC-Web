@@ -484,3 +484,42 @@ class ExamAnswerOptionViewSet(StatusManagerMixin, mixins.CreateModelMixin, Gener
             return Response(data=se.data, status=status.HTTP_201_CREATED)
 
         return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ExamReviewViewSet(
+    StatusManagerMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+):
+    """
+    API endpoint for teachers to review and grade Exam Submissions.
+    Restricted to GET, POST, and PATCH. Deletion is physically disabled.
+    """
+
+    queryset = models.ExamReviews.objects.all()
+    serializer_class = serializer.ExamReviewsSerializer
+    pagination_class = Pagination30
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = filters.ExamReviewFilter
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # N+1 protection for relational teacher and exam submission reads
+        return qs.select_related("exam_submission", "graded_by__user").order_by("-id")
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        """
+        Save the exam review and explicitly transition the parent exam submission status to 'g' (Graded).
+        Wrapped in an atomic transaction to ensure data integrity.
+        """
+        review_instance = serializer.save()
+
+        # Native, optimized update to the parent ExamSubmissions record
+        submission = review_instance.exam_submission
+        submission.status = "g"
+        submission.save(update_fields=["status"])
