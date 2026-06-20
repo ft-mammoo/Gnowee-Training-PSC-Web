@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -10,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from assessments import filters, models, serializer
-from utility.views import Pagination20, Pagination25, Pagination30, Pagination100, StatusManagerMixin
+from utility.views import Pagination20, Pagination25, Pagination30, Pagination50, Pagination100, StatusManagerMixin
 
 
 class ExamViewSet(StatusManagerMixin, ModelViewSet):
@@ -397,3 +398,43 @@ class SubmissionViewSet(StatusManagerMixin, ModelViewSet):
             return Response({"detail": "Cannot delete a graded submission."}, status=status.HTTP_400_BAD_REQUEST)
 
         return super().destroy(request, *args, **kwargs)
+
+
+class SubmissionGradeViewSet(
+    StatusManagerMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+):
+    """
+    API endpoint for teachers to grade submissions.
+    Restricted to GET, POST, and PATCH. Deletion is physically disabled.
+    """
+
+    queryset = models.SubmissionGrade.objects.all()
+    serializer_class = serializer.SubmissionGradeSerializer
+    pagination_class = Pagination50
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = filters.SubmissionGradeFilter
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # N+1 protection for relational teacher and submission reads
+        return qs.select_related("submission", "graded_by__user").order_by("-id")
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        """
+        Save the grade and explicitly transition the parent submission status to 'g' (Graded).
+        Wrapped in an atomic transaction to ensure both records succeed or fail together.
+        """
+        # Save the new SubmissionGrade instance
+        grade_instance = serializer.save()
+
+        # Native, optimized update to the parent Submission
+        submission = grade_instance.submission
+        submission.status = "g"
+        submission.save(update_fields=["status"])

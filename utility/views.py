@@ -82,6 +82,10 @@ class Pagination30(BaseViewPagination):
     page_size = 30
 
 
+class Pagination50(PageNumberPagination):
+    page_size = 50
+
+
 class Pagination100(BaseViewPagination):
     page_size = 100
 
