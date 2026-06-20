@@ -438,3 +438,49 @@ class SubmissionGradeViewSet(
         submission = grade_instance.submission
         submission.status = "g"
         submission.save(update_fields=["status"])
+
+
+class ExamAnswerOptionViewSet(StatusManagerMixin, mixins.CreateModelMixin, GenericViewSet):
+    """
+    Restricted strictly to POST (Create) operations.
+    Links a selected QuestionOption to a submitted ExamAnswer.
+    Engineered to handle rapid toggling by reactivating soft-deleted options
+    instead of duplicating rows or hitting uniqueness constraints.
+    """
+
+    queryset = models.ExamAnswerOptions.objects.all()
+    serializer_class = serializer.ExamAnswerOptionsSerializer
+
+    def create(self, request, *args, **kwargs):
+        answer_id = request.data.get("answer")
+        option_id = request.data.get("option")
+
+        if not answer_id or not option_id:
+            return Response(
+                {"detail": "Both answer and option IDs are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 1. Query using all_objects to bypass the active-only default manager
+        existing_option = models.ExamAnswerOptions.all_objects.filter(answer_id=answer_id, option_id=option_id).first()
+
+        if existing_option:
+            # If it's already active, block the duplicate request
+            if existing_option.status == "a":
+                return Response(
+                    {"detail": "This option is already selected for this answer."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 2. Reactivate the soft-deleted record instead of creating a new one
+            existing_option.activate()
+            se = self.get_serializer(existing_option, context={"request": request})
+            return Response(data=se.data, status=status.HTTP_200_OK)
+
+        # 3. Standard creation if no record has ever existed for this pairing
+        se = self.get_serializer(data=request.data, context={"request": request})
+        if se.is_valid():
+            se.save()
+            return Response(data=se.data, status=status.HTTP_201_CREATED)
+
+        return Response(data=se.errors, status=status.HTTP_400_BAD_REQUEST)
