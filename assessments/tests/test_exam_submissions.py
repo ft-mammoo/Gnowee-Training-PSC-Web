@@ -121,6 +121,42 @@ class ExamSubmissionAPITestCase(APITestCase):
         # Assuming the setUp created at least one submission today
         self.assertGreaterEqual(response.data["count"], 1)
 
+    def test_create_submission_before_start_time_blocked(self):
+        """Verify POST /exam-submissions/ blocks access before the exam opens."""
+
+        # Create an exam starting tomorrow
+        future_exam = Exams.objects.create(
+            course=self.course,
+            title="Future Exam",
+            start_time=timezone.now() + timedelta(days=1),
+            end_time=timezone.now() + timedelta(days=2),
+            total_marks=100,
+        )
+
+        payload = {"exam": future_exam.id, "student": self.student.id}
+        response = self.client.post(self.list_url, data=payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "This exam has not started yet.")
+
+    def test_create_submission_after_end_time_blocked(self):
+        """Verify POST /exam-submissions/ blocks access after the exam closes."""
+
+        # Create an exam that ended yesterday
+        past_exam = Exams.objects.create(
+            course=self.course,
+            title="Past Exam",
+            start_time=timezone.now() - timedelta(days=2),
+            end_time=timezone.now() - timedelta(days=1),
+            total_marks=100,
+        )
+
+        payload = {"exam": past_exam.id, "student": self.student.id}
+        response = self.client.post(self.list_url, data=payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "This exam has already ended.")
+
 
 class ExamNestedSubmissionsAPITestCase(APITestCase):
     """
