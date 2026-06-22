@@ -201,6 +201,7 @@ class ExamSubmissionViewSet(
     a soft-deleted submission if the same student tries to start the same exam again.
     """
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         exam_id = request.data.get("exam")
         student_id = request.data.get("student")
@@ -451,6 +452,7 @@ class ExamAnswerOptionViewSet(StatusManagerMixin, mixins.CreateModelMixin, Gener
     queryset = models.ExamAnswerOptions.objects.all()
     serializer_class = serializer.ExamAnswerOptionsSerializer
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         answer_id = request.data.get("answer")
         option_id = request.data.get("option")
