@@ -92,3 +92,20 @@ class ExamReviewAPITestCase(APITestCase):
 
         response = self.client.delete(detail_url)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_create_review_score_exceeds_max_marks_blocked(self):
+        """Verify POST /exam-reviews/ blocks scores mathematically higher than total_marks."""
+
+        payload = {
+            "exam_submission": self.submission.id,
+            "graded_by": self.teacher.id,
+            "score": 150.00,  # Deliberately exceeding the 100 max limit
+            "feedback": "Impossible score",
+        }
+
+        response = self.client.post(self.list_url, data=payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Check that our custom serializer validation error is triggered specifically on the score field
+        self.assertIn("score", response.data)
+        self.assertIn("cannot exceed the exam's total marks", response.data["score"][0])
