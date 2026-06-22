@@ -212,6 +212,22 @@ class ExamSubmissionViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        exam = get_object_or_404(models.Exams, id=exam_id)
+        current_time = timezone.now()
+
+        if current_time < exam.start_time:
+            return Response(
+                {"detail": "This exam has not started yet."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if current_time > exam.end_time:
+            return Response(
+                {"detail": "This exam has already ended."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Query using all_objects to bypass the active-only default manager
         submission = models.ExamSubmissions.all_objects.filter(exam_id=exam_id, student_id=student_id).first()
 
         if submission:
