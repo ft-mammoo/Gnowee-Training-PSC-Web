@@ -18,7 +18,7 @@ class ExamViewSet(StatusManagerMixin, ModelViewSet):
     queryset = models.Exams.objects.all().order_by("id")
     pagination_class = Pagination20
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ["course", "start_time", "end_time"]
+    filterset_class = filters.ExamFilter
     search_fields = ["title", "description"]
 
     def get_serializer_class(self):
@@ -165,7 +165,7 @@ class QuestionViewSet(StatusManagerMixin, ModelViewSet):
     serializer_class = serializer.ExamQuestionSerializer
     pagination_class = Pagination30
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ["category", "question_type"]
+    filterset_class = filters.QuestionFilter
     search_fields = ["question_text"]
 
 
@@ -174,7 +174,7 @@ class QuestionOptionViewSet(StatusManagerMixin, ModelViewSet):
     serializer_class = serializer.QuestionOptionsSerializer
     pagination_class = Pagination100
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["question", "is_correct"]
+    filterset_class = filters.QuestionOptionFilter
 
 
 class ExamSubmissionViewSet(
@@ -189,7 +189,7 @@ class ExamSubmissionViewSet(
     serializer_class = serializer.ExamSubmissionsSerializer
     pagination_class = Pagination30
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["exam", "student"]
+    filterset_class = filters.ExamSubmissionFilter
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -268,7 +268,7 @@ class AssignmentViewSet(StatusManagerMixin, ModelViewSet):
     queryset = models.Assignment.objects.all()
     pagination_class = Pagination25
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ["course", "teacher", "due_date", "created_date"]
+    filterset_class = filters.AssignmentFilter
     search_fields = ["title", "description"]
 
     def get_queryset(self):
