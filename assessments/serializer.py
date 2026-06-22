@@ -105,10 +105,33 @@ class ExamAnswerOptionsSerializer(BaseSerializer):
         fields = "__all__"
 
 
-class ExamReviewsSerializer(BaseSerializer):
-    class Meta(BaseSerializer.Meta):
+class ExamReviewsSerializer(serializers.ModelSerializer):
+    class Meta:
         model = models.ExamReviews
         fields = "__all__"
+        read_only_fields = ["status", "created_date", "updated_date"]
+
+    # Data Integrity Validation for Scores
+    def validate(self, attrs):
+        # 1. Extract the score being submitted
+        score = attrs.get("score")
+
+        # 2. Extract the parent submission.
+        # If it's a POST request, it's in attrs.
+        # If it's a PATCH request, it might only be on the instance.
+        submission = attrs.get("exam_submission")
+        if not submission and self.instance:
+            submission = self.instance.exam_submission
+
+        # 3. If we have both, execute the mathematical boundary check
+        if score is not None and submission:
+            max_marks = submission.exam.total_marks
+            if score > max_marks:
+                raise serializers.ValidationError(
+                    {"score": f"Assigned score ({score}) cannot exceed the exam's total marks ({max_marks})."}
+                )
+
+        return attrs
 
 
 class AssignmentNestedSerializer(BaseSerializer):
