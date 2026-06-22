@@ -109,3 +109,31 @@ class ExamAnswerOptionAPITestCase(APITestCase):
         manual_detail_url = f"/exam-answer-options/{opt.id}/"
         self.assertEqual(self.client.patch(manual_detail_url, {}).status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(self.client.delete(manual_detail_url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_create_option_after_exam_ends_blocked(self):
+        """Verify POST is blocked if the parent exam has already ended."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        # Fast-forward the exam's end time to the past
+        self.exam.end_time = timezone.now() - timedelta(minutes=5)
+        self.exam.save()
+
+        payload = {"answer": self.answer.id, "option": self.option_a.id}
+        response = self.client.post(self.list_url, data=payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "Cannot modify answers after the exam has ended.")
+
+    def test_create_option_on_graded_submission_blocked(self):
+        """Verify POST is blocked if the parent submission is already graded."""
+        # Set the parent submission status to graded
+        self.submission.status = "g"
+        self.submission.save()
+
+        payload = {"answer": self.answer.id, "option": self.option_a.id}
+        response = self.client.post(self.list_url, data=payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "Cannot modify answers for a graded submission.")
