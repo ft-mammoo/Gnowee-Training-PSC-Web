@@ -1,13 +1,13 @@
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from assessments.models import Assignment, Submission
+from assessments.models import Assignment, Exams, ExamSubmissions, Submission
 from courses.models import Course
 from staffs.models import Teacher
 from students.models import Student
@@ -64,13 +64,29 @@ class SubmissionAPITestCase(APITestCase):
             assignment=self.active_assignment, student=self.student, file_url="url1", status="s"
         )
         self.graded_sub = Submission.objects.create(
-            assignment=self.active_assignment, student=self.student, file_url="url2", status="g"
+            assignment=self.expired_assignment, student=self.student, file_url="url2", status="g"
         )
 
         # URLs
         self.list_url = reverse("submission-list")
         self.active_detail_url = reverse("submission-detail", kwargs={"pk": self.active_sub.id})
         self.graded_detail_url = reverse("submission-detail", kwargs={"pk": self.graded_sub.id})
+
+    def test_database_structural_integrity_unique_submission(self):
+        """Verify that a student cannot have multiple active submissions for the same assignment."""
+        with self.assertRaises(IntegrityError):
+            Submission.objects.create(
+                assignment=self.active_assignment, student=self.student, file_url="duplicate_hacked_url", status="s"
+            )
+
+    def test_database_read_optimization_indexes(self):
+        """Verify that critical filtering fields are mathematically indexed at the database level."""
+        self.assertTrue(Submission._meta.get_field("status").db_index)
+        self.assertTrue(Submission._meta.get_field("submitted_date").db_index)
+        self.assertTrue(Assignment._meta.get_field("due_date").db_index)
+        self.assertTrue(Exams._meta.get_field("start_time").db_index)
+        self.assertTrue(Exams._meta.get_field("end_time").db_index)
+        self.assertTrue(ExamSubmissions._meta.get_field("submission_time").db_index)
 
     def test_list_submissions_n_plus_one_safety(self):
         """Verify GET /submissions/ works and uses select_related to limit queries."""
@@ -92,8 +108,15 @@ class SubmissionAPITestCase(APITestCase):
 
     def test_create_submission_success(self):
         """Verify POST /submissions/ works for an active assignment."""
+        new_assignment = Assignment.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="New task",
+            due_date=date.today() + timedelta(days=7),
+            status="a",
+        )
         payload = {
-            "assignment": self.active_assignment.id,
+            "assignment": new_assignment.id,
             "student": self.student.id,
             "file_url": "new_url",
             "status": "s",
@@ -103,8 +126,16 @@ class SubmissionAPITestCase(APITestCase):
 
     def test_create_submission_deadline_passed(self):
         """Verify POST /submissions/ is blocked if assignment is past due."""
+        # Create a brand new expired assignment so we don't trip the unique constraint on self.expired_assignment
+        new_expired = Assignment.objects.create(
+            course=self.course,
+            teacher=self.teacher,
+            title="Old task",
+            due_date=date.today() - timedelta(days=7),
+            status="a",
+        )
         payload = {
-            "assignment": self.expired_assignment.id,
+            "assignment": new_expired.id,
             "student": self.student.id,
             "file_url": "late_url",
             "status": "s",
@@ -115,7 +146,13 @@ class SubmissionAPITestCase(APITestCase):
 
     def test_update_active_submission_success(self):
         """Verify PATCH /submissions/{id}/ works for ungraded items."""
-        payload = {"file_url": "updated_url"}
+        # DRF's UniqueConstraintValidator requires condition fields to be present in the validation context
+        payload = {
+            "file_url": "updated_url",
+            "status": "s",
+            "assignment": self.active_assignment.id,
+            "student": self.student.id,
+        }
         response = self.client.patch(self.active_detail_url, data=payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["file_url"], "updated_url")
