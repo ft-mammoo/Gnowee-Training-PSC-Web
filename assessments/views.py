@@ -479,6 +479,20 @@ class ExamAnswerOptionViewSet(StatusManagerMixin, mixins.CreateModelMixin, Gener
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        answer = get_object_or_404(models.ExamAnswers.objects.select_related("exam_submission__exam"), id=answer_id)
+
+        if answer.exam_submission.status == "g":
+            return Response(
+                {"detail": "Cannot modify answers for a graded submission."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if timezone.now() > answer.exam_submission.exam.end_time:
+            return Response(
+                {"detail": "Cannot modify answers after the exam has ended."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # 1. Query using all_objects to bypass the active-only default manager
         existing_option = models.ExamAnswerOptions.all_objects.filter(answer_id=answer_id, option_id=option_id).first()
 
