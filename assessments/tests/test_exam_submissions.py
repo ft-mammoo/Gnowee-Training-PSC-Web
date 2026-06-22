@@ -110,6 +110,17 @@ class ExamSubmissionAPITestCase(APITestCase):
         self.assertEqual(self.client.patch(self.detail_url, {}).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
         self.assertEqual(self.client.delete(self.detail_url).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    def test_filter_exam_submissions_by_date(self):
+        """Verify the newly standardized filterset correctly filters by submission_time."""
+        today_str = date.today().strftime("%Y-%m-%d")
+
+        # Fire a GET request with the new model-aligned query parameter
+        response = self.client.get(f"{self.list_url}?submission_time={today_str}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Assuming the setUp created at least one submission today
+        self.assertGreaterEqual(response.data["count"], 1)
+
 
 class ExamNestedSubmissionsAPITestCase(APITestCase):
     """
