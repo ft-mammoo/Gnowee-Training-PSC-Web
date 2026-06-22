@@ -15,7 +15,7 @@ from utility.views import Pagination20, Pagination25, Pagination30, Pagination50
 
 
 class ExamViewSet(StatusManagerMixin, ModelViewSet):
-    queryset = models.Exams.objects.all().order_by("id")
+    queryset = models.Exams.objects.select_related("course").all().order_by("id")
     pagination_class = Pagination20
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = filters.ExamFilter
